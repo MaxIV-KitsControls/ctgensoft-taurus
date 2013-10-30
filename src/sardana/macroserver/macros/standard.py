@@ -399,7 +399,7 @@ class umv(Macro):
         table = Table(self.all_pos, elem_fmt=['%*.4f'],
                       col_head_str=self.all_names, col_head_width=motor_width)
         self.outputBlock(table.genOutput())
-        self.flushOutput()
+        #self.flushOutput()
 
 class mvr(Macro):
     """Move motor(s) relative to the current position(s)"""
@@ -470,7 +470,7 @@ class ct(Macro):
         self.debug("Counting for %s sec", integ_time)
         self.outputDate()
         self.output('')
-        self.flushOutput()
+        #self.flushOutput()
 
         state, data = self.mnt_grp.count(integ_time)
 
@@ -522,7 +522,7 @@ class uct(Macro):
         table = Table(self.values, elem_fmt=['%*.4f'], col_head_str=self.names, 
                       col_head_width=ch_width)
         self.outputBlock(table.genOutput())
-        self.flushOutput()
+        #self.flushOutput()
     
     def counterChanged(self, ch_attr, value):
         idx = self.channels.index(ch_attr)

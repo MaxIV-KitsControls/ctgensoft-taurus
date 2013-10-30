@@ -49,7 +49,7 @@ class loop(Macro, Hookable):
         self.hooks = [ (self.hook1, ["pre-acq"])]
         for i in xrange(start, stop, step):
             self.output("At step %d" % i)
-            self.flushOutput()
+            #self.flushOutput()
             
             for hook,hints in self.hooks:
                 self.info("running hook with hints="+repr(hints))

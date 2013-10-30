@@ -297,7 +297,7 @@ class Controller(object):
     def __init__(self, inst, props, *args, **kwargs):
         self._inst_name = inst
         self._log = Logger("Controller.%s" % inst)
-        self._log.log_obj.setLevel(taurus.getLogLevel())
+        self._log._logger.getLogObj().setLevel(taurus.getLogLevel())
         self._args = args
         self._kwargs = kwargs
         self._api_version = self._findAPIVersion()

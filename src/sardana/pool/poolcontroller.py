@@ -364,11 +364,11 @@ class PoolController(PoolBaseController):
     
     @check_ctrl
     def set_log_level(self, level):
-        self.ctrl._log.log_obj.setLevel(level)
+        self.ctrl._log._logger.getLogObj().setLevel(level)
     
     @check_ctrl
     def get_log_level(self):
-        return self.ctrl._log.log_obj.level
+        return self.ctrl._log._logger.getLogObj().level
     
     def get_library_name(self):
         return self._lib_name

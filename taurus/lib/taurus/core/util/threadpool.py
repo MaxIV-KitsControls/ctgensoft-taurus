@@ -62,7 +62,7 @@ class ThreadPool(Logger):
             
             for i in range(newSize - nb_workers):
                 self.localThreadId += 1
-                name = "%s.W%03i" % (self.log_name, self.localThreadId)
+                name = "%s.W%03i" % (self._logger.getName(), self.localThreadId)
                 new = Worker(self, name, self._daemons)
                 self.workers.append(new)
                 self.debug("Starting %s" % name)

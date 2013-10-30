@@ -154,7 +154,7 @@ class Pool(PoolContainer, PoolObject, SardanaElementManager, SardanaIDManager):
                                                        maxBytes=1E7,
                                                        backupCount=5)
 
-            f_h.setFormatter(self.getLogFormat())
+            f_h.setFormatter(self._logger.getLogFormat())
             log.addHandler(f_h)
             self.info("Controller logs stored in %s", log_file_name)
         except:

@@ -357,7 +357,7 @@ class PoolCTAcquisition(PoolAction):
                 slave.stop_action()
             except:
                 self.warning("Unable to stop slave acquisition %s",
-                             slave.getLogName())
+                             slave._logger.getName())
                 self.debug("Details", exc_info=1)
 
         with ActionContext(self):

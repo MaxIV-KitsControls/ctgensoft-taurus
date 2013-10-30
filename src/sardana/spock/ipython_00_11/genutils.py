@@ -886,7 +886,7 @@ object?   -> Details about 'object'. ?object also works, ?? prints more.
     # Application
     # ------------------------------------
     app = config.Application
-    app.log_level = 30
+    app._logger.log_level = 30
 
     # ------------------------------------
     # BaseIPythonApplication

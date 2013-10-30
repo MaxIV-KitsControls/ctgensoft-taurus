@@ -56,7 +56,7 @@ from PyTango import Util, Database, WAttribute, DbDevInfo, DevFailed, \
     DeviceClass, Except
 
 import taurus
-from taurus.core.util.log import Logger
+from taurus.core.util.log import Logger, _LoggerHelper
 
 import sardana
 from sardana import State, SardanaServer, DataType, DataFormat, InvalidId, \
@@ -762,7 +762,8 @@ def prepare_taurus(options, args, tango_args):
     
 def prepare_logging(options, args, tango_args, start_time=None, log_messages=None):
     taurus.setLogLevel(taurus.Debug)
-    root = Logger.getRootLog()
+#    root = Logger.getRootLog()
+    root = _LoggerHelper.getRootLog()
     
     # output logger configuration
     log_output_level = options.log_level
@@ -805,7 +806,7 @@ def prepare_logging(options, args, tango_args, start_time=None, log_messages=Non
             if not os.path.exists(path):
                 os.makedirs(path, 0777)
             
-            fmt = Logger.getLogFormat()
+            fmt = _LoggerHelper.getLogFormat()
             f_h = logging.handlers.RotatingFileHandler(log_file_name,
                                                        maxBytes=1E7,
                                                        backupCount=5)

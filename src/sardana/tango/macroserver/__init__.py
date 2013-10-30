@@ -33,18 +33,19 @@ from .Door import *
 def prepare_macroserver(util):
     import taurus.core.util.log
     Logger = taurus.core.util.log.Logger
+    _LoggerHelper = taurus.core.util.log._LoggerHelper
 
     # Two additional log levels: 
     # output of a macro
-    Logger.addLevelName(15, "OUTPUT")
+    _LoggerHelper.addLevelName(15, "OUTPUT")
 
     def output(loggable, msg, *args, **kw):
-        loggable.getLogObj().log(Logger.Output, msg, *args, **kw)
+        loggable._logger.getLogObj().log(_LoggerHelper.Output, msg, *args, **kw)
 
     Logger.output = output
 
     # result of a macro
-    Logger.addLevelName(18, "RESULT")
+    _LoggerHelper.addLevelName(18, "RESULT")
 
     util.add_class(MacroServerClass, MacroServer)
     util.add_class(DoorClass, Door)

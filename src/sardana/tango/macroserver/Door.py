@@ -242,9 +242,13 @@ class Door(SardanaDevice):
         for level in levels:
             handler = AttributeLogHandler(self, level,
                                           max_buff_size=self.MaxMsgBufferSize)
-            filter = taurus.core.util.LogFilter(level=getattr(self, level))
+            try:
+                filter = taurus.core.util.LogFilter(level=getattr(self, level))
+            except:
+                filter = taurus.core.util.LogFilter(level=getattr(self._logger, level))
+
             handler.addFilter(filter)
-            self.addLogHandler(handler)
+            self._logger.addLogHandler(handler)
             format = None
             self._handler_dict[level] = handler, filter, format
     

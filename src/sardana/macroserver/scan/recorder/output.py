@@ -200,10 +200,10 @@ class OutputRecorder(DataRecorder):
         self._scan_line_t += [(name, cell_t_number % name) for name in col_names[1:]]
         
         self._stream.output(header)
-        self._stream.flushOutput()
+        #self._stream.flushOutput()
     
     def _endRecordList(self, recordlist):
-        self._stream.flushOutput()
+        #self._stream.flushOutput()
         starttime = recordlist.getEnvironValue('starttime')
         endtime   = recordlist.getEnvironValue('endtime')
         deadtime = recordlist.getEnvironValue('deadtime')
@@ -241,7 +241,7 @@ class OutputRecorder(DataRecorder):
         scan_line = self._col_sep.join(cells)
             
         self._stream.output(scan_line)
-        self._stream.flushOutput()
+        #self._stream.flushOutput()
         
     def _addCustomData(self, value, name, **kwargs):
         '''
@@ -253,4 +253,4 @@ class OutputRecorder(DataRecorder):
         else:
             v = str(value)
         self._stream.output('Custom data: %s : %s'%(name,v) )
-        self._stream.flushOutput()
+        #self._stream.flushOutput()

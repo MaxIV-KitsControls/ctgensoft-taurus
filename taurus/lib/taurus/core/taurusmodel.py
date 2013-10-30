@@ -77,7 +77,7 @@ class TaurusModel(Logger):
         self.trace("[TaurusModel] cleanUp")
         #self._parentObj = None
         self._listeners = None
-        Logger.cleanUp(self)
+#        Logger.cleanUp(self)
         
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
     # API for Factory access

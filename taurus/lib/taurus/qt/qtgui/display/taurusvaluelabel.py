@@ -130,7 +130,7 @@ class TaurusValueLabel(Qt.QLabel, TaurusBaseWidget):
         
         modelObj = self.getModelObj()
         if modelObj is not None:
-            s = modelObj.getParent().getStateObj()
+            s = modelObj._logger.getParent().getStateObj()
             if showState:
                 s.addListener(self._stateListener)
             else:
@@ -178,7 +178,7 @@ class TaurusValueLabel(Qt.QLabel, TaurusBaseWidget):
             quality = getattr(self.getModelValueObj(), 'quality', None)
             ss = QT_ATTRIBUTE_QUALITY_PALETTE.qtStyleSheet(quality)
         elif self.getShowState():
-            try: state = self.getModelObj().getParent().getState()
+            try: state = self.getModelObj()._logger.getParent().getState()
             except Exception:
                 state = None
             ss = QT_DEVICE_STATE_PALETTE.qtStyleSheet(state)
@@ -235,10 +235,10 @@ class TaurusValueLabel(Qt.QLabel, TaurusBaseWidget):
         newModelObj = self.getModelObj()
         if self.getShowState():
             if oldModelObj is not None:
-                s = oldModelObj.getParent().getStateObj()
+                s = oldModelObj._logger.getParent().getStateObj()
                 s.removeListener(self._stateListener)
             if newModelObj is not None:
-                s = newModelObj.getParent().getStateObj()
+                s = newModelObj._logger.getParent().getStateObj()
                 s.addListener(self._stateListener)
         
     @classmethod

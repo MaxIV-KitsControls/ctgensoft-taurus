@@ -462,23 +462,26 @@ def Object(klass, name):
 
 from taurus.core.util import log as __log_mod
 
+
 Logger   = __log_mod.Logger
-Critical = Logger.Critical
-Error    = Logger.Error
-Warning  = Logger.Warning
-Info     = Logger.Info
-Debug    = Logger.Debug
-Trace    = Logger.Trace
+Critical = __log_mod._LoggerHelper.Critical
+Error    = __log_mod._LoggerHelper.Error
+Warning  = __log_mod._LoggerHelper.Warning
+Info     = __log_mod._LoggerHelper.Info
+Debug    = __log_mod._LoggerHelper.Debug
+Trace    = __log_mod._LoggerHelper.Trace
 
-setLogLevel = Logger.setLogLevel
-setLogFormat = Logger.setLogFormat
-getLogLevel = Logger.getLogLevel
-getLogFormat = Logger.getLogFormat
-resetLogLevel = Logger.resetLogLevel
-resetLogFormat = Logger.resetLogFormat
+setLogLevel = __log_mod._LoggerHelper.setLogLevel
+getLogLevel = __log_mod._LoggerHelper.getLogLevel
+resetLogLevel = __log_mod._LoggerHelper.resetLogLevel 
 
-enableLogOutput = Logger.enableLogOutput
-disableLogOutput = Logger.disableLogOutput
+
+setLogFormat = __log_mod._LoggerHelper.setLogFormat
+getLogFormat = __log_mod._LoggerHelper.getLogFormat
+resetLogFormat = __log_mod._LoggerHelper.resetLogFormat
+
+enableLogOutput = __log_mod._LoggerHelper.enableLogOutput
+disableLogOutput = __log_mod._LoggerHelper.disableLogOutput
 
 log = __log_mod._log
 trace = __log_mod.trace

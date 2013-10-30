@@ -45,10 +45,10 @@ _plugins = {}
 
 def main():
     from taurus import Manager
-    from taurus.core.util.log import Logger
+    from taurus.core.util.log import Logger, _LoggerHelper
     from taurus.core.taurusbasetypes import OperationMode
     from taurus.qt.qtgui.util import TaurusWidgetFactory
-    Logger.setLogLevel(Logger.Debug)
+    _LoggerHelper.setLogLevel(_LoggerHelper.Debug)
     _log = Logger(__name__)
     
     Manager().setOperationMode(OperationMode.OFFLINE)

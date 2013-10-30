@@ -275,7 +275,7 @@ class MacroFinder:
 
         def f(*args, **kwargs):
             p_m = self.macro_obj
-            p_m.syncLog()
+            #p_m.syncLog()
             opts = { 'parent_macro' : p_m,
                      'executor'     : p_m.executor }
             kwargs.update(opts)
@@ -991,11 +991,14 @@ class Macro(Logger):
         :param kwargs: list of keyword arguments"""
         return self.getDoorObj().report(msg, *args, **kwargs)
 
+    '''
+    #Deprecated function - Removed from Logger.
     @mAPI
     def flushOutput(self):
         """**Macro API**.
         Flushes the output buffer."""
         return Logger.flushOutput(self)
+    '''
 
     @mAPI
     def getMacroThread(self):
@@ -1081,7 +1084,7 @@ class Macro(Logger):
             preparing the macro"""
         # sync our log before calling the child macro prepare in order to avoid
         # mixed outputs between this macro and the child macro
-        self.syncLog()
+        #self.syncLog()
         init_opts = { 'parent_macro' : self }
         return self.executor.prepareMacroObj(macro_name_or_klass, args,
                                              init_opts, kwargs)
@@ -1113,7 +1116,7 @@ class Macro(Logger):
             preparing the macro"""
         # sync our log before calling the child macro prepare in order to avoid
         # mixed outputs between this macro and the child macro
-        self.syncLog()
+        #self.syncLog()
         init_opts = { 'parent_macro' : self }
         return self.executor.prepareMacro(args, init_opts, kwargs)
 
@@ -1134,7 +1137,7 @@ class Macro(Logger):
         :return: the output of the macro"""
         # sync our log before calling the child macro prepare in order to avoid
         # mixed outputs between this macro and the child macro
-        self.syncLog()
+        #self.syncLog()
         return self.executor.runMacro(macro_obj)
 
     @mAPI
@@ -2272,7 +2275,7 @@ class Macro(Logger):
             raise AttributeError("%r object has no attribute %r" %
                                  (type(self).__name__, name))
         def f(*args, **kwargs):
-            self.syncLog()
+            #self.syncLog()
             opts = dict(parent_macro=self, executor=self.executor)
             kwargs.update(opts)
             eargs = [name]

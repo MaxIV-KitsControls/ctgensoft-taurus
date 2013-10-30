@@ -767,7 +767,7 @@ class TaurusGraphicsItem(TaurusBaseComponent):
         return True
 
     def __str__(self):
-        return self.log_name + "(" + self.modelName + ")"
+        return self._logger.getName() + "(" + self.modelName + ")"
 
     def getModelClass(self):
         return TaurusAttribute
