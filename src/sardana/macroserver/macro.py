@@ -955,7 +955,9 @@ class Macro(Logger):
         :param msg: (str) the message to be recorded
         :param args: list of arguments
         :param kw: list of keyword arguments"""
-        return Logger.trace(self, msg, *args, **kwargs)
+        Logger.deprecated("Trace level is marked as deprecated. Use *DEBUG* level instead of *TRACE*")
+        return Logger.debug(self, msg, *args, **kwargs)
+        #return Logger.trace(self, msg, *args, **kwargs)
 
     @mAPI
     def traceback(self, *args, **kwargs):

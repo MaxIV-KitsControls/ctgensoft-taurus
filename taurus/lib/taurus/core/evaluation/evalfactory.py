@@ -468,9 +468,9 @@ class EvaluationAttribute(TaurusAttribute):
         try:
             v = evt_value.value
         except AttributeError:
-            self.trace('Ignoring event from %s'%repr(evt_src))
+            self.debug('Ignoring event from %s'%repr(evt_src))
             return
-        #self.trace('received event from %s (%s=%s)'%(evt_src, self.getId(evt_src), v))
+        #self.debug('received event from %s (%s=%s)'%(evt_src, self.getId(evt_src), v))
         #update the corresponding value
         evaluator = self.getParentObj()
         evaluator.addSafe({self.getId(evt_src) : v})

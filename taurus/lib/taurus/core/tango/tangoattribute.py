@@ -399,7 +399,7 @@ class TangoAttribute(TaurusAttribute):
         self._getRealConfig().addListener(self)
         
 
-        self.trace("Subscribing to change events...")
+        self.debug("Subscribing to change events...")
 
         dev = self.getParentObj()
         if dev is None:
@@ -431,7 +431,7 @@ class TangoAttribute(TaurusAttribute):
         # parent object
         self._getRealConfig().removeListener(self)
         if not self.__chg_evt_id is None and not self._dev_hw_obj is None:
-            self.trace("Unsubscribing to change events (ID=%d)" % self.__chg_evt_id)
+            self.debug("Unsubscribing to change events (ID=%d)" % self.__chg_evt_id)
             try:
                 self._dev_hw_obj.unsubscribe_event(self.__chg_evt_id)
                 self.__chg_evt_id = None
@@ -442,7 +442,7 @@ class TangoAttribute(TaurusAttribute):
                     pass
                 else:
                     self.debug("Failed: %s" % df[0].desc)
-                    self.trace(str(df))
+                    self.debug(str(df))
         self._deactivatePolling()
         self.__subscription_state = SubscriptionState.Unsubscribed
     

@@ -46,9 +46,6 @@ from object import Object
 from wrap import wraps
 from excepthook import BaseExceptHook
 
-TRACE = 5
-logging.addLevelName(TRACE, "TRACE")
-
 #
 # _srcfile is used when walking the stack to check when we've got the first
 # caller stack frame.
@@ -181,8 +178,7 @@ class TraceIt(LogIt):
 
     .. seealso:: :class:`LogIt`"""
     def __init__(self, showargs=False, showret=False):
-        LogIt.__init__(self, level=TRACE, showargs=showargs, showret=showret)
-
+        LogIt.__init__(self, level=logging.DEBUG, showargs=showargs, showret=showret)
 
 class DebugIt(LogIt):
     """Specialization of LogIt for debug level messages.
@@ -346,6 +342,8 @@ class _Logger(logging.Logger):
         return rv
 
 
+LoggerList = []
+Enable = True
 
 class _LoggerHelper(object):
     #: Internal usage
@@ -370,7 +368,7 @@ class _LoggerHelper(object):
     Debug    = logging.DEBUG
 
     #: Trace message level (constant)
-    Trace    = TRACE
+    Trace    = logging.DEBUG
 
     #: Default log level (constant)
     DftLogLevel = Info
@@ -422,8 +420,27 @@ class _LoggerHelper(object):
     def setLogObj(self, fullname):
         self.log_obj = self._getLogger(fullname)
 
+
     def getLogObj(self):
         return self.log_obj
+
+#TODO
+    @classmethod
+    def initLogger(cls):
+        if cls.root_inited:
+            cls.root_init_lock.acquire()
+            root_logger = cls._getLogger()
+            cls.stream_handler = logging.StreamHandler(sys.__stderr__)
+            cls.stream_handler.setFormatter(cls.log_format)
+            root_logger.addHandler(cls.stream_handler)
+            console_log_level = os.environ.get("TAURUSLOGLEVEL", None)
+            if console_log_level is not None:
+                console_log_level = console_log_level.capitalize()
+                if hasattr(cls, console_log_level):
+                    cls.log_level = getattr(cls, console_log_level)
+            root_logger.setLevel(cls.log_level)
+            _LoggerHelper.root_inited = True
+            cls.root_init_lock.release()
 
     @classmethod
     def initRoot(cls):
@@ -436,7 +453,7 @@ class _LoggerHelper(object):
         try:
             cls.root_init_lock.acquire()
             root_logger = cls._getLogger()
-            logging.addLevelName(cls.Trace, "TRACE")
+            #logging.addLevelName(cls.Trace, "TRACE")
             cls.stream_handler = logging.StreamHandler(sys.__stderr__)
             cls.stream_handler.setFormatter(cls.log_format)
             root_logger.addHandler(cls.stream_handler)
@@ -453,10 +470,13 @@ class _LoggerHelper(object):
 
     @staticmethod
     def _getLogger(name=None):
+        global Enable
         orig_logger_class = logging.getLoggerClass()
         try:
             logging.setLoggerClass(_Logger)
             ret = logging.getLogger(name)
+            if not Enable:
+                ret.disabled = True
             return ret
         finally:
             logging.setLoggerClass(orig_logger_class)
@@ -482,6 +502,7 @@ class _LoggerHelper(object):
         """
         h.setFormatter(cls.getLogFormat())
         cls.initRoot().addHandler(h)
+
 
     @classmethod
     def getLogLevel(cls):
@@ -659,6 +680,24 @@ class _LoggerHelper(object):
             #print "*** _Logger ", level_name 
             setattr(cls, level_name, level_no)
 
+    @staticmethod
+    def dissable():
+        global Enable, LoggerList
+        Enable = False
+        for l in LoggerList:
+            l.disabled = True
+            l.propagate = False
+        
+    '''
+    @classmethod
+    def dissable(cls):
+        try:
+            l = cls._getLogger(cls.fullname)
+        except:
+            l = cls._getLogger()
+        l.disabled = True
+        l.propagate = False
+    '''
 
 class Logger(Object):
     """The taurus logger class. All taurus pertinent classes should inherit
@@ -701,7 +740,8 @@ class Logger(Object):
            :param args: list of arguments
            :param kw: list of keyword arguments
         """
-        self._logger.getLogObj().log(self._logger.Trace, msg, *args, **kw)
+        self.deprecated("Trace level is marked as deprecated. Use *DEBUG* level instead of *TRACE*")
+        self._logger.getLogObj().debug(msg, *args, **kw)
 
     def traceback(self, level=None, extended=True):
         """Log the usual traceback information, followed by a listing of all the

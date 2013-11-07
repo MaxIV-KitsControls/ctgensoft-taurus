@@ -762,8 +762,9 @@ def prepare_taurus(options, args, tango_args):
     
 def prepare_logging(options, args, tango_args, start_time=None, log_messages=None):
     taurus.setLogLevel(taurus.Debug)
-#    root = Logger.getRootLog()
     root = _LoggerHelper.getRootLog()
+
+
     
     # output logger configuration
     log_output_level = options.log_level

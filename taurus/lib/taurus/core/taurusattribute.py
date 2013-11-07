@@ -66,7 +66,7 @@ class TaurusAttribute(TaurusModel):
         self._dev_hw_obj = parent.getHWObj()
     
     def cleanUp(self):
-        self.trace("[TaurusAttribute] cleanUp")
+        self.debug("[TaurusAttribute] cleanUp")
         self._unsubscribeEvents()
         self._dev_hw_obj = None
         TaurusModel.cleanUp(self)

@@ -46,7 +46,7 @@ class TaurusModel(Logger):
         self._full_name, self._norm_name, self._simp_name = v.getNames(full_name, self.factory())
         
         if self._full_name is None and self._norm_name and self._simp_name is None:
-            self.trace("invalid name")
+            self.debug("invalid name")
         
         name = self._simp_name or self._norm_name or self._full_name or 'TaurusModel'
         self.call__init__(Logger, name, parent)
@@ -74,7 +74,7 @@ class TaurusModel(Logger):
         return self.__str__name__(self.getFullName())
     
     def cleanUp(self):
-        self.trace("[TaurusModel] cleanUp")
+        self.debug("[TaurusModel] cleanUp")
         #self._parentObj = None
         self._listeners = None
 #        Logger.cleanUp(self)

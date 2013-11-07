@@ -97,7 +97,7 @@ class TaurusConfiguration(TaurusModel):
         pass
     
     def cleanUp(self):
-        self.trace("[TaurusConfiguration] cleanUp")
+        self.debug("[TaurusConfiguration] cleanUp")
         self._unsubscribeEvents()
         self._attr_info = None
         self._dev_hw_obj = None

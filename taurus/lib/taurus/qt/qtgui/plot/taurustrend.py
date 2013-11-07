@@ -305,7 +305,7 @@ class TaurusTrendsSet(Qt.QObject, TaurusBaseComponent):
         if self._yBuffer is None:
             self._yBuffer = ArrayBuffer(numpy.zeros((min(128,self._maxBufferSize), ntrends),dtype='d'), maxSize=self._maxBufferSize )
             
-        #self.trace('_updateHistory(%s,%s(...))' % (model,type(value.value)))
+        #self.debug('_updateHistory(%s,%s(...))' % (model,type(value.value)))
         if value is not None: self._yBuffer.append(value.value)
         
         if self.parent().getXIsTime():
@@ -1285,7 +1285,7 @@ class TaurusTrend(TaurusPlot):
 
     def doReplot(self):
         '''calls :meth:`replot` only if there is new data to be plotted'''
-        #self.trace('Replotting? %s',self._dirtyPlot)
+        #self.debug('Replotting? %s',self._dirtyPlot)
         if self._dirtyPlot:
             self.replot()
             self._dirtyPlot = False
