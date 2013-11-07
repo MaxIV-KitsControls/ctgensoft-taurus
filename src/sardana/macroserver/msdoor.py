@@ -370,7 +370,6 @@ class MSDoor(MSObject):
             _LoggerHelper.setLogLevel(_LoggerHelper.Output)
             #filter = taurus.core.util.LogFilter(level=Logger.Output)
             formatter = logging.Formatter(fmt="%(message)s")
-#            Logger.setLogFormat("%(message)s")
             _LoggerHelper.setLogFormat("%(message)s")
             handler = logging.StreamHandler(stream=sys.stdout)
             #handler.addFilter(filter)

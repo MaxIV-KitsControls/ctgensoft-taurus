@@ -342,9 +342,6 @@ class _Logger(logging.Logger):
         return rv
 
 
-LoggerList = []
-Enable = True
-
 class _LoggerHelper(object):
     #: Internal usage
     root_inited    = False
@@ -395,7 +392,6 @@ class _LoggerHelper(object):
         self.log_obj = None
         self.log_handlers = []
         self.log_children = {}
-        _LoggerHelper.initRoot()
 
     def setName(self, name):
         self.name = name
@@ -418,81 +414,29 @@ class _LoggerHelper(object):
         return self.parent()
 
     def setLogObj(self, fullname):
-        self.log_obj = self._getLogger(fullname)
-
+        self.log_obj = logging.getLogger(fullname)
 
     def getLogObj(self):
         return self.log_obj
 
-#TODO
     @classmethod
     def initLogger(cls):
-        if cls.root_inited:
-            cls.root_init_lock.acquire()
-            root_logger = cls._getLogger()
-            cls.stream_handler = logging.StreamHandler(sys.__stderr__)
-            cls.stream_handler.setFormatter(cls.log_format)
-            root_logger.addHandler(cls.stream_handler)
-            console_log_level = os.environ.get("TAURUSLOGLEVEL", None)
-            if console_log_level is not None:
-                console_log_level = console_log_level.capitalize()
-                if hasattr(cls, console_log_level):
-                    cls.log_level = getattr(cls, console_log_level)
-            root_logger.setLevel(cls.log_level)
-            _LoggerHelper.root_inited = True
-            cls.root_init_lock.release()
-
-    @classmethod
-    def initRoot(cls):
-        """Class method to initialize the root logger. Do **NOT** call this
-           method directly in your code
-        """
-        if cls.root_inited:
-            return cls._getLogger()
-
-        try:
-            cls.root_init_lock.acquire()
-            root_logger = cls._getLogger()
-            #logging.addLevelName(cls.Trace, "TRACE")
-            cls.stream_handler = logging.StreamHandler(sys.__stderr__)
-            cls.stream_handler.setFormatter(cls.log_format)
-            root_logger.addHandler(cls.stream_handler)
-            console_log_level = os.environ.get("TAURUSLOGLEVEL", None)
-            if console_log_level is not None:
-                console_log_level = console_log_level.capitalize()
-                if hasattr(cls, console_log_level):
-                    cls.log_level = getattr(cls, console_log_level)
-            root_logger.setLevel(cls.log_level)
-            _LoggerHelper.root_inited = True
-        finally:
-            cls.root_init_lock.release()
-        return root_logger
-
-    @staticmethod
-    def _getLogger(name=None):
-        global Enable
-        orig_logger_class = logging.getLoggerClass()
-        try:
-            logging.setLoggerClass(_Logger)
-            ret = logging.getLogger(name)
-            if not Enable:
-                ret.disabled = True
-            return ret
-        finally:
-            logging.setLoggerClass(orig_logger_class)
-
-    @classmethod
-    def getRootLog(cls):
-        """Retuns the root logger
-
-           :return: (logging.Logger) the root logger
-        """
-        return cls.initRoot()  
-
-    @classmethod
-    def getLogger(cls, name=None):
-        cls.initRoot()
-        return cls._getLogger(name=name) 
+        if not cls.root_inited:
+            try:
+                cls.root_init_lock.acquire()
+                root_logger = logging.getLogger()
+                cls.stream_handler = logging.StreamHandler(sys.__stderr__)
+                cls.stream_handler.setFormatter(cls.log_format)
+                root_logger.addHandler(cls.stream_handler)
+                console_log_level = os.environ.get("TAURUSLOGLEVEL", None)
+                if console_log_level is not None:
+                    console_log_level = console_log_level.capitalize()
+                    if hasattr(cls, console_log_level):
+                        cls.log_level = getattr(cls, console_log_level)
+                root_logger.setLevel(cls.log_level)
+                _LoggerHelper.root_inited = True
+            finally:
+                cls.root_init_lock.release()
 
     @classmethod
     def addRootLogHandler(cls, h):
@@ -501,7 +445,7 @@ class _LoggerHelper(object):
            :param h: (logging.Handler) the new log handler
         """
         h.setFormatter(cls.getLogFormat())
-        cls.initRoot().addHandler(h)
+        logging.getLogger().addHandler(h)
 
 
     @classmethod
@@ -519,7 +463,7 @@ class _LoggerHelper(object):
            :param level: (int) the new log level
         """
         cls.log_level = level
-        cls.initRoot().setLevel(level)
+        logging.getLogger().setLevel(level)
 
     @classmethod
     def resetLogLevel(cls):
@@ -530,7 +474,7 @@ class _LoggerHelper(object):
     @classmethod
     def setLogFormat(cls,format):
         cls.log_format = logging.Formatter(format)
-        root_logger = cls._logger.initRoot()
+        root_logger = logging.getLogger()
         for h in root_logger.handlers:
             h.setFormatter(cls.log_format)
 
@@ -552,14 +496,14 @@ class _LoggerHelper(object):
         """Enables the :class:`logging.StreamHandler` which dumps log records,
            by default, to the stderr.
         """
-        cls.initRoot().addHandler(cls.stream_handler)
+        logging.getLogger().addHandler(cls.stream_handler)
 
     @classmethod
     def disableLogOutput(cls):
         """Disables the :class:`logging.StreamHandler` which dumps log records,
            by default, to the stderr.
         """
-        cls.initRoot().removeHandler(cls.stream_handler)
+        logging.getLogger().removeHandler(cls.stream_handler)
 
     @classmethod
     def removeRootLogHandler(cls, h):
@@ -567,7 +511,7 @@ class _LoggerHelper(object):
 
            :param h: (logging.Handler) the handler to be removed
         """
-        cls.initRoot().removeHandler(h)
+        logging.getLogger().removeHandler(h)
 
     def _format_trace(self):
         return self._format_stack(inspect.trace)
@@ -677,27 +621,8 @@ class _LoggerHelper(object):
         logging.addLevelName(level_no, level_name)
         level_name = level_name.capitalize()
         if not hasattr(cls, level_name):
-            #print "*** _Logger ", level_name 
             setattr(cls, level_name, level_no)
 
-    @staticmethod
-    def dissable():
-        global Enable, LoggerList
-        Enable = False
-        for l in LoggerList:
-            l.disabled = True
-            l.propagate = False
-        
-    '''
-    @classmethod
-    def dissable(cls):
-        try:
-            l = cls._getLogger(cls.fullname)
-        except:
-            l = cls._getLogger()
-        l.disabled = True
-        l.propagate = False
-    '''
 
 class Logger(Object):
     """The taurus logger class. All taurus pertinent classes should inherit
@@ -861,8 +786,7 @@ class LogFilter(logging.Filter):
         return ok
 
 def __getrootlogger():
-    #return Logger.getLogger("TaurusRootLogger")
-    return _LoggerHelper.getLogger("TaurusRootLogger")
+    return logging.getLogger("TaurusRootLogger")
 
 
 # cannot export log because upper package taurus.core.util imports this 'log' 

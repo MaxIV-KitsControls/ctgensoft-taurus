@@ -196,10 +196,17 @@ class TaurusApplication(Qt.QApplication, Logger):
         if 'cmd_line_parser' in kwargs:
             parser = kwargs.pop('cmd_line_parser')
 
+        auto_init_log = kwargs.pop('auto_init_log', True)
+
         try:
             Qt.QApplication.__init__(self, *args, **kwargs)
         except TypeError:
             Qt.QApplication.__init__(self, *args)
+
+
+        if auto_init_log:
+#            from taurus.core.util.log import _LoggerHelper
+            taurus.initLogger()
 
         Logger.__init__(self)
 

@@ -761,9 +761,13 @@ def prepare_taurus(options, args, tango_args):
     factory.disablePolling()
     
 def prepare_logging(options, args, tango_args, start_time=None, log_messages=None):
-    taurus.setLogLevel(taurus.Debug)
-    root = _LoggerHelper.getRootLog()
+    #init Taurus Logger
+    #_LoggerHelper.initLogger()
+    taurus.initLogger()
 
+    taurus.setLogLevel(taurus.Debug)
+    #root = _LoggerHelper.getRootLog()
+    root = logging.getLogger()
 
     
     # output logger configuration

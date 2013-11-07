@@ -31,7 +31,7 @@ __all__ = ['check_dependencies', 'log_dependencies', 'getSchemeFromName',
            'Critical', 'Error', 'Warning', 'Info', 'Debug', 'Trace',
            'setLogLevel', 'setLogFormat', 'getLogLevel', 'getLogFormat',
            'resetLogLevel', 'resetLogFormat',
-           'enableLogOutput', 'disableLogOutput',
+           'enableLogOutput', 'disableLogOutput', 'initLogger',
            'log', 'trace', 'debug', 'info', 'warning', 'error', 'critical',
            'changeDefaultPollingPeriod']
 
@@ -482,6 +482,8 @@ resetLogFormat = __log_mod._LoggerHelper.resetLogFormat
 
 enableLogOutput = __log_mod._LoggerHelper.enableLogOutput
 disableLogOutput = __log_mod._LoggerHelper.disableLogOutput
+
+initLogger = __log_mod._LoggerHelper.initLogger
 
 log = __log_mod._log
 trace = __log_mod.trace
