@@ -161,7 +161,7 @@ class TangoConfiguration(TaurusConfiguration):
 
     def _subscribeEvents(self):
         """ Enable subscription to the attribute configuration events."""
-        self.debug("Subscribing to configuration events...")
+        self.trace("Subscribing to configuration events...")
         dev = self._getDev()
         if dev is None:
             self.debug("failed to subscribe config events: device is None")
@@ -194,13 +194,13 @@ class TangoConfiguration(TaurusConfiguration):
         # so we should not access external objects from the factory, like the 
         # parent object
         if self._cfg_evt_id and not self._dev_hw_obj is None:
-            self.debug("Unsubscribing to configuration events (ID=%s)" % str(self._cfg_evt_id))
+            self.trace("Unsubscribing to configuration events (ID=%s)" % str(self._cfg_evt_id))
             try:
                 self._dev_hw_obj.unsubscribe_event(self._cfg_evt_id)
                 self._cfg_evt_id = None
             except PyTango.DevFailed, e:
                 self.debug("Exception trying to unsubscribe configuration events")
-                self.debug(str(e))
+                self.trace(str(e))
                 
     def decode(self, i):
         if i is None:
@@ -217,8 +217,20 @@ class TangoConfiguration(TaurusConfiguration):
         # add dev_name, dev_alias, attr_name, attr_full_name
         i.dev_name = self._getDev().getNormalName()
         i.dev_alias = self._getDev().getSimpleName()
-        i.attr_name = self._getAttr().getSimpleName()
-        i.attr_fullname = self._getAttr().getNormalName()
+        try:
+            attr = self._getAttr()
+            if attr is not None:
+                i.attr_fullname = self._getAttr().getNormalName()
+                i.attr_name = self._getAttr().getSimpleName()
+            else: 
+                self.debug(('TangoConfiguration.decode(%s/%s): ' +
+                              'self._getAttr() returned None (failed detach?)'), 
+                           i.dev_name, i.name)
+        except:
+            import traceback
+            self.warning('at TangoConfiguration.decode(%s/%s)', i.dev_name, i.name)
+            self.warning(traceback.format_exc())
+            i.attr_name = i.attr_fullname = ''
         
         # %6.2f is the default value that Tango sets when the format is
         # unassigned. This is only good for float types! So for other

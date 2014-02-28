@@ -61,18 +61,17 @@ from IPython.core.profiledir import ProfileDirError, ProfileDir
 from IPython.core.application import BaseIPythonApplication
 from IPython.core.interactiveshell import InteractiveShell
 from IPython.utils.io import ask_yes_no as _ask_yes_no
-from IPython.utils.io import raw_input_ext as _raw_input_ext
 from IPython.utils.path import get_ipython_dir
 from IPython.utils.process import arg_split
 from IPython.utils.coloransi import TermColors
 from IPython.config.application import Application
-from IPython.frontend.terminal.ipapp import TerminalIPythonApp, \
-    launch_new_instance
+from IPython.terminal.ipapp import TerminalIPythonApp, launch_new_instance
 
-from taurus.core.taurushelper import Factory, Manager, Warning
+import taurus
+#from taurus.core import Release as TCRelease
+
+from taurus.core.taurushelper import Factory
 from taurus.core.util.codecs import CodecFactory
-from taurus.core.taurushelper import setLogLevel
-
 
 # make sure Qt is properly initialized
 from taurus.qt import Qt
@@ -140,7 +139,7 @@ def ask_yes_no(prompt,default=None):
     return _ask_yes_no(prompt, default)
 
 def spock_input(prompt='',  ps2='... '):
-    return _raw_input_ext(prompt=prompt, ps2=ps2)
+    return raw_input(prompt)
 
 def translate_version_str2int(version_str):
     """Translates a version string in format x[.y[.z[...]]] into a 000000 number"""
@@ -414,8 +413,8 @@ def clean_up():
 
 def get_taurus_core_version():
     try:
-        from taurus.core import Release as TCRelease
-        return TCRelease.version
+        import taurus
+        return taurus.core.release.version
     except:
         import traceback
         traceback.print_exc()
@@ -598,7 +597,14 @@ def create_spock_profile(userdir, dft_profile, profile, door_name=None):
     if not os.path.isdir(userdir):
         ProfileDir.create_profile_dir(userdir)
     p_dir = ProfileDir.create_profile_dir_by_name(userdir, profile)
-    config_file_name = BaseIPythonApplication.config_file_name.default_value
+    ###########################################################################
+    # NOTE: BaseIPythonApplication.config_file_name.default_value should return
+    # the config file name, but it returns an empty string instead (at least 
+    # in some cases). For now, we give a hardcoded name if it is empty
+    # TODO: Check why this is the case
+    config_file_name = BaseIPythonApplication.config_file_name.default_value 
+    config_file_name = config_file_name or 'ipython_config.py' 
+    ###########################################################################
     abs_config_file_name = os.path.join(p_dir.location, config_file_name)
     create_config = True
     if os.path.isfile(abs_config_file_name):
@@ -652,7 +658,6 @@ config.IPKernelApp.pylab = 'inline'
 
     sys.stdout.write('Storing %s in %s... ' % (config_file_name, p_dir.location))
     sys.stdout.flush()
-
 
     with file(abs_config_file_name, "w") as f:
         f.write(dest_data)
@@ -1032,7 +1037,7 @@ object?   -> Details about 'object'. ?object also works, ?? prints more.
 def start(user_ns=None):
     # Make sure the log level is changed to warning
     CodecFactory()
-    setLogLevel(Warning)
+    taurus.setLogLevel(taurus.Warning)
 
     try:
         check_requirements()
@@ -1113,7 +1118,7 @@ def prepare_cmdline(argv=None):
 
 def run():
     from IPython.utils.traitlets import Unicode
-    from IPython.frontend.qt.console.rich_ipython_widget import RichIPythonWidget
+    from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
 
     class SpockConsole(RichIPythonWidget):
         
@@ -1123,8 +1128,8 @@ def run():
             config = get_config()
             return config.FrontendWidget.banner
 
-    import IPython.frontend.qt.console.qtconsoleapp
-    IPythonQtConsoleApp = IPython.frontend.qt.console.qtconsoleapp.IPythonQtConsoleApp
+    import IPython.qt.console.qtconsoleapp
+    IPythonQtConsoleApp = IPython.qt.console.qtconsoleapp.IPythonQtConsoleApp
     IPythonQtConsoleApp.widget_factory = SpockConsole
 
     try:

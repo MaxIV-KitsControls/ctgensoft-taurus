@@ -46,7 +46,8 @@ import weakref
 import StringIO
 import ctypes
 
-from taurus.core.util import Logger, propertx
+from taurus.core.util.log import Logger
+from taurus.core.util.prop import propertx
 from taurus.console.table import Table
 from taurus.console.list import List
 
@@ -955,9 +956,7 @@ class Macro(Logger):
         :param msg: (str) the message to be recorded
         :param args: list of arguments
         :param kw: list of keyword arguments"""
-        Logger.deprecated("Trace level is marked as deprecated. Use *DEBUG* level instead of *TRACE*")
-        return Logger.debug(self, msg, *args, **kwargs)
-        #return Logger.trace(self, msg, *args, **kwargs)
+        return Logger.trace(self, msg, *args, **kwargs)
 
     @mAPI
     def traceback(self, *args, **kwargs):

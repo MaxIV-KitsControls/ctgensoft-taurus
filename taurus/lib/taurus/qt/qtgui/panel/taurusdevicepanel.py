@@ -261,7 +261,7 @@ class TaurusDevicePanel(TaurusWidget):
         if model: 
             model = model and model.split()[0] or ''
             modelclass = taurus.Factory().findObjectClass(model)
-        self.debug('In TaurusDevicePanel.setModel(%s(%s),%s)'%(raw,modelclass,pixmap))
+        self.trace('In TaurusDevicePanel.setModel(%s(%s),%s)'%(raw,modelclass,pixmap))
         if model == self.getModel():
             return
         elif raw is None or not model or not modelclass: 
@@ -274,8 +274,8 @@ class TaurusDevicePanel(TaurusWidget):
             self.warning('TaurusDevicePanel accepts only Device models')
             return
         try:
-            if self.getModel(): self.detach()
             taurus.Device(model).ping()
+            if self.getModel(): self.detach() #Do not dettach previous model before pinging the new one (fail message will be shown at except: clause)
             TaurusWidget.setModel(self,model)
             self.setWindowTitle(str(model).upper())
             model = self.getModel()
@@ -329,8 +329,11 @@ class TaurusDevicePanel(TaurusWidget):
         return
                     
     def detach(self):
-        self.debug('In TaurusDevicePanel(%s).detach()'%self.getModel())
+        self.trace('In TaurusDevicePanel(%s).detach()'%self.getModel())
         _detached = []
+        #long imports to avoid comparison problems in the isinstance below 
+        import taurus.qt.qtgui.container
+        import taurus.qt.qtgui.base
         def detach_recursive(obj):
             if obj in _detached: return
             if isinstance(obj,taurus.qt.qtgui.container.TaurusBaseContainer):
@@ -346,10 +349,18 @@ class TaurusDevicePanel(TaurusWidget):
                     self.warning(traceback.format_exc())                    
             _detached.append(obj)
         detach_recursive(self)
+        try:
+            self._label.setText('')
+            self._state.setModel('')
+            if hasattr(self,'_statelabel'): self._statelabel.setModel('')
+            self._status.setModel('')
+            self._image.setPixmap(Qt.QPixmap())
+        except:
+            self.warning(traceback.format_exc())
         
     def get_attrs_form(self,device,form=None,filters=None,parent=None):
         filters = filters or get_regexp_dict(TaurusDevicePanel._attribute_filter,device,['.*'])
-        self.debug( 'In TaurusDevicePanel.get_attrs_form(%s,%s)'%(device,filters))
+        self.trace( 'In TaurusDevicePanel.get_attrs_form(%s,%s)'%(device,filters))
         allattrs = sorted(str(a) for a in taurus.Device(device).get_attribute_list() if str(a).lower() not in ('state','status'))
         attrs = []
         for a in filters:
@@ -359,7 +370,7 @@ class TaurusDevicePanel(TaurusWidget):
                     if not aname in attrs:
                         attrs.append(aname)  
         if attrs:
-            #self.debug( 'Matching attributes are: %s' % str(attrs)[:100])
+            #self.trace( 'Matching attributes are: %s' % str(attrs)[:100])
             if form is None: form = TaurusForm(parent)
             elif hasattr(form,'setModel'): form.setModel([])
             ##Configuring the TauForm:
@@ -371,7 +382,7 @@ class TaurusDevicePanel(TaurusWidget):
         else: return None
     
     def get_comms_form(self,device,form=None,parent=None):
-        self.debug( 'In TaurusDevicePanel.get_comms_form(%s)'%device)
+        self.trace( 'In TaurusDevicePanel.get_comms_form(%s)'%device)
         params = get_regexp_dict(TaurusDevicePanel._command_filter,device,[])
         if TaurusDevicePanel._command_filter and not params: #If filters are defined only listed devices will show commands
             self.debug('TaurusDevicePanel.get_comms_form(%s): By default an unknown device type will display no commands'% device)
@@ -519,16 +530,15 @@ class TaurusDevPanel(TaurusMainWindow):
 
 def TaurusDevicePanelMain():
     '''A launcher for TaurusDevicePanel.'''
-    #!/usr/bin/python
     import sys
     from taurus.qt.qtgui.application import TaurusApplication
     from taurus.core.util import argparse
     
     parser = argparse.get_taurus_parser()
-    parser.set_usage("%prog [options] devname [attrs]")
+    parser.set_usage("%prog [options] [devname [attrs]]")
     parser.set_description("Taurus Application inspired in Jive and Atk Panel")
     parser.add_option("", "--config-file", dest="config_file", default=None,
-                  help="launch a wizard for creating a new TaurusGUI application")
+                  help="load a config file (TODO: document this option)") 
                       
     app = TaurusApplication(cmd_line_parser=parser,app_name="TaurusDevicePanel",
                             app_version=taurus.Release.version)
@@ -544,15 +554,23 @@ def TaurusDevicePanelMain():
     try: w.setTangoHost(options.tango_host)
     except: pass
     
+    if len(args) == 0:
+        from taurus.qt.qtgui.panel import TaurusModelChooser
+        models, ok = TaurusModelChooser.modelChooserDlg(w, 
+                                       selectables = [TaurusElementType.Member],
+                                       singleModel= True )
+        model = models[0] if ok and models else None
+        filters = ''
+    else:
+        model = args[0]
+        filters = args[1:]
+
     if options.config_file is not None:
         w.loadConfigFile(options.config_file)
-    else:
-        w.setAttributeFilters({args[0]:args[1:]})
-        
-    if len(args)<1:
-        parser.print_help() #@todo use modelchooser instead of printing the help
-        return
-    w.setModel(args[0])
+    elif model and filters:
+        w.setAttributeFilters({model:filters})
+
+    w.setModel(model)
     
     sys.exit(app.exec_())             
 
