@@ -62,6 +62,20 @@ designer/horizontal_linear_gauge.png
 designer/vertical_linear_gauge.png
 designer/state.png 
 
+The following icons in the lib/qt/qtgui/resource/extra-icons/
+directory have been created in ESRF and are licensed under the 
+Creative Commons Attribution 3.0 License
+See: <http://creativecommons.org/licenses/by/3.0/>
+
+designer/xterm.png
+
+The following icons in the lib/qt/qtgui/resource/extra-icons/ 
+directory have been copied/derived from Wikimedia, distributed
+Creative Commons Attribution 3.0 License
+See <http://creativecommons.org/licenses/by/3.0/> for more info
+
+designer/xorg.png
+
 The following icons in the lib/qt/qtgui/resource/extra-icons/ 
 directory have been copied/derived from Qt open-source code, distributed
 under the LGPL v 2.1 license.
