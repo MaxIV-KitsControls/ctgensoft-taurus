@@ -276,7 +276,6 @@ class MacroFinder:
 
         def f(*args, **kwargs):
             p_m = self.macro_obj
-            #p_m.syncLog()
             opts = { 'parent_macro' : p_m,
                      'executor'     : p_m.executor }
             kwargs.update(opts)
@@ -992,14 +991,12 @@ class Macro(Logger):
         :param kwargs: list of keyword arguments"""
         return self.getDoorObj().report(msg, *args, **kwargs)
 
-    '''
-    #Deprecated function - Removed from Logger.
     @mAPI
     def flushOutput(self):
         """**Macro API**.
         Flushes the output buffer."""
-        return Logger.flushOutput(self)
-    '''
+        #Deprecated function - Removed from Logger.
+        pass
 
     @mAPI
     def getMacroThread(self):
@@ -1064,8 +1061,8 @@ class Macro(Logger):
 
         :param pars: the command parameters as explained above
         :return:
-            a sequence of two elemetns: the macro class and a sequence of
-            parameters
+            a sequence of two elements: the macro object and the result of
+            preparing the macro
         :rtype: :obj:`tuple`\<:class:`~sardana.macroserver.macro.Macro`\, seq<obj>>
         """
         return self.prepareMacro(*pars)
@@ -1085,7 +1082,6 @@ class Macro(Logger):
             preparing the macro"""
         # sync our log before calling the child macro prepare in order to avoid
         # mixed outputs between this macro and the child macro
-        #self.syncLog()
         init_opts = { 'parent_macro' : self }
         return self.executor.prepareMacroObj(macro_name_or_klass, args,
                                              init_opts, kwargs)
@@ -1117,7 +1113,6 @@ class Macro(Logger):
             preparing the macro"""
         # sync our log before calling the child macro prepare in order to avoid
         # mixed outputs between this macro and the child macro
-        #self.syncLog()
         init_opts = { 'parent_macro' : self }
         return self.executor.prepareMacro(args, init_opts, kwargs)
 
@@ -1135,10 +1130,9 @@ class Macro(Logger):
             self.runMacro(macro)
 
         :param macro_obj: macro object
-        :return: the output of the macro"""
+        :return: macro result"""
         # sync our log before calling the child macro prepare in order to avoid
         # mixed outputs between this macro and the child macro
-        #self.syncLog()
         return self.executor.runMacro(macro_obj)
 
     @mAPI
@@ -2276,7 +2270,6 @@ class Macro(Logger):
             raise AttributeError("%r object has no attribute %r" %
                                  (type(self).__name__, name))
         def f(*args, **kwargs):
-            #self.syncLog()
             opts = dict(parent_macro=self, executor=self.executor)
             kwargs.update(opts)
             eargs = [name]
