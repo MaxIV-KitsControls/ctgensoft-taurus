@@ -111,6 +111,7 @@ packages = [
     'taurus.qt.qtgui.editor',
     'taurus.qt.qtgui.gauge',
     'taurus.qt.qtgui.gauge.demo',
+    'taurus.qt.qtgui.graph',
     'taurus.qt.qtgui.graphic',
     'taurus.qt.qtgui.graphic.jdraw',
     'taurus.qt.qtgui.image',
