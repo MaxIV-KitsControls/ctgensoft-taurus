@@ -458,6 +458,11 @@ class PlotCodec(FunctionCodec):
         FunctionCodec.__init__(self, 'plot')
 
 
+class Frame(numpy.ndarray):
+    def __init__(self, *args, **kwargs):
+        self.meta = dict()
+
+
 class VideoImageCodec(Codec):
     """A codec able to encode/decode to/from LImA video_image format.
     
@@ -483,6 +488,54 @@ class VideoImageCodec(Codec):
     """
     
     VIDEO_HEADER_FORMAT = '!IHHqiiHHHH'
+    VIDEO_HEADER_FORMAT_SIZE = struct.calcsize(VIDEO_HEADER_FORMAT)
+    FMT = 'VIDEO_IMAGE'
+    MAGIC = 0x5644454f
+    
+    VIDEO_2_NP = {
+        0: 'uint8',
+        1: 'uint16',
+        2: 'uint32',
+        3: 'uint64',
+    }
+    NP_2_VIDEO = dict((v,k) for k, v in VIDEO_2_NP.items())
+
+    def __init__(self):
+        Codec.__init__(self)
+        _lima_qub = False
+        try:
+            import Lima.Core
+            from Qub.CTools.pixmaptools import LUT
+            _lima_qub = True
+        except ImportError:
+            pass
+
+        if _lima_qub:
+            self.LUT = LUT
+            self.LimaVideoMode_2_QubImageType = {
+               Lima.Core.Y8: LUT.Scaling.Y8,
+               Lima.Core.Y16: LUT.Scaling.Y16,
+               Lima.Core.Y32: LUT.Scaling.Y32,
+               Lima.Core.Y64: LUT.Scaling.Y64,
+               Lima.Core.RGB555: LUT.Scaling.RGB555,
+               Lima.Core.RGB565: LUT.Scaling.RGB565,
+               Lima.Core.RGB24: LUT.Scaling.RGB24,
+               Lima.Core.RGB32: LUT.Scaling.RGB32,
+               Lima.Core.BGR24: LUT.Scaling.BGR24,
+               Lima.Core.BGR32: LUT.Scaling.BGR32,
+               Lima.Core.BAYER_RG8: LUT.Scaling.BAYER_RG8,
+               Lima.Core.BAYER_RG16: LUT.Scaling.BAYER_RG16,
+               Lima.Core.BAYER_BG8: LUT.Scaling.BAYER_BG8,
+               Lima.Core.BAYER_BG16: LUT.Scaling.BAYER_BG16,
+               Lima.Core.I420: LUT.Scaling.I420,
+               Lima.Core.YUV411: LUT.Scaling.YUV411,
+               Lima.Core.YUV422: LUT.Scaling.YUV422,
+               Lima.Core.YUV444: LUT.Scaling.YUV444,
+            }
+            self.decode = self.__decode_lima_qub
+        else:
+            self.decode = self.__decode_simple
+            self.warning("Lima or(and) Qub not available. Video codec limited to basic types")
     
     def encode(self, data, *args, **kwargs):
         """encodes the given data to a LImA's video_image. The given data **must** be an numpy.array
@@ -491,127 +544,96 @@ class VideoImageCodec(Codec):
         
         :return: (sequence[str, obj]) a sequence of two elements where the first item is the encoding format of the second item object"""
 
-        format = 'VIDEO_IMAGE'
-        if len(data[0]): format += '_%s' % data[0]
-        #imgMode depends on numpy.array dtype
-        imgMode = self.__getModeId(str(data[1].dtype))
-        #frameNumber, unknown then -1
-        height,width = data[1].shape
-        header = self.__packHeader(imgMode,-1,width,height)
-        buffer = data[1].tostring()
-        return format,header+buffer
-    
-    def decode(self, data, *args, **kwargs):
+        fmt, raw_data = data
+        if len(fmt):
+            fmt = self.FMT + "_" + fmt
+        else:
+            fmt = self.FMT
+
+        #mode depends on numpy.array dtype
+        mode = self.NP_2_VIDEO[raw_data.dtype.name]
+        try:
+            frame_nb = raw_data.meta['frame_nb']
+        except (AttributeError, KeyError):
+            frame_nb = -1
+        height, width = raw_data.shape
+        header = self.__packHeader(mode, frame_nb, width, height)
+        buff = raw_data.tostring()
+        return fmt, header+buff
+
+    def __decode_simple(self, data, *args, **kwargs):
         """decodes the given data from a LImA's video_image.
             
         :param data: (sequence[str, obj]) a sequence of two elements where the first item is the encoding format of the second item object
         
         :return: (sequence[str, obj]) a sequence of two elements where the first item is the encoding format of the second item object"""
 
-        if not data[0] == 'VIDEO_IMAGE':
+        fmt, raw_data = data
+        if not fmt.startswith(self.FMT):
             return data
-        header = self.__unpackHeader(data[1][:struct.calcsize(self.VIDEO_HEADER_FORMAT)])
-        
-        imgBuffer = data[1][struct.calcsize(self.VIDEO_HEADER_FORMAT):]
-        dtype = self.__getDtypeId(header['imageMode'])
-        img1D = numpy.fromstring(imgBuffer, dtype)
-        img2D = img1D.reshape(header['height'],header['width'])
-
-        return '',img2D
-
-    def __unpackHeader(self,header):
-        h = struct.unpack(self.VIDEO_HEADER_FORMAT,header)
-        headerDict={}
-        headerDict['magic']         = h[0]
-        headerDict['headerVersion'] = h[1]
-        headerDict['imageMode']     = h[2]
-        headerDict['frameNumber']   = h[3]
-        headerDict['width']         = h[4]
-        headerDict['height']        = h[5]
-        headerDict['endianness']    = h[6]
-        headerDict['headerSize']    = h[7]
-        headerDict['padding']       = h[8:]
-        return headerDict
+        frame = None
+        raw_data_size = len(raw_data)
+        min_header_size = self.VIDEO_HEADER_FORMAT_SIZE
+        if raw_data_size >= min_header_size:
+            magic, h_version, img_mode, frame_nb, w, h, endian, h_size, pad0, pad1 = \
+              struct.unpack(self.VIDEO_HEADER_FORMAT, raw_data[:min_header_size])
+            if magic != self.MAGIC:
+                raise TypeError("Unsupported magic '%s" % magic)
+            mode = self.VIDEO_2_NP.get(img_mode)
+            if mode is None:
+                raise TypeError("Unsupported mode %s" % img_mode)
+            if raw_data_size == min_header_size:
+                w, h = 0, 0
+            frame = Frame((h, w), dtype=mode, buffer=raw_data[h_size:])
+            frame.meta['frame_nb'] = frame_nb
+        return fmt[len(self.FMT)+1:], frame
     
-    def __packHeader(self,imgMode,frameNumber,width,height):
-        magic = 0x5644454f
+    def __decode_lima_qub(self, data, *args, **kwargs):
+        """decodes the given data from a LImA's video_image.
+            
+        :param data: (sequence[str, obj]) a sequence of two elements where the first item is the encoding format of the second item object
+        
+        :return: (sequence[str, obj]) a sequence of two elements where the first item is the encoding format of the second item object"""
+
+        fmt, raw_data = data
+        if not fmt.startswith(self.FMT):
+            return data
+        frame = None
+        raw_data_size = len(raw_data)
+        min_header_size = self.VIDEO_HEADER_FORMAT_SIZE
+        if raw_data_size >= min_header_size:
+            magic, h_version, img_mode, frame_nb, w, h, endian, h_size, pad0, pad1 = \
+              struct.unpack(self.VIDEO_HEADER_FORMAT, raw_data[:min_header_size])
+            if magic != self.MAGIC:
+                raise TypeError("Unsupported magic '%s" % magic)
+            mode = self.LimaVideoMode_2_QubImageType.get(img_mode)
+            if mode is None:
+                raise TypeError("Unsupported mode %s" % img_mode)
+            if raw_data_size == min_header_size:
+                w, h = 0, 0
+            if mode == self.LUT.Scaling.Y32:
+                # At the time Qub.LUT is not implementing Y32
+                frame = Frame((h, w), dtype=numpy.uint32, buffer=raw_data[h_size:])
+            else:
+                array = self.LUT.raw_video_2_luma(raw_data[h_size:], w, h, mode)
+                frame = Frame(array.shape, dtype=array.dtype, buffer=array.data)
+            frame.meta['frame_nb'] = frame_nb
+        return fmt[len(self.FMT)+1:], frame
+
+    def __packHeader(self,imgMode, frameNumber, width, height):
         version = 1
         endian = ord(struct.pack('=H',1)[-1])
-        hsize = struct.calcsize(self.VIDEO_HEADER_FORMAT)
         return struct.pack(self.VIDEO_HEADER_FORMAT,
-                           magic,
+                           self.MAGIC,
                            version,
                            imgMode,
                            frameNumber,
                            width,
                            height,
                            endian,
-                           hsize,
+                           self.VIDEO_HEADER_FORMAT_SIZE,
                            0,0)#padding
 
-    def __getModeId(self,mode):
-        return {#when encode
-                'uint8'      : 0,#Core.Y8,
-                'uint16'     : 1,#Core.Y16,
-                'uint32'     : 2,#Core.Y32,
-                'uint64'     : 3,#Core.Y64,
-                #when decode
-                'Y8'         : 0,#Core.Y8,
-                'Y16'        : 1,#Core.Y16,
-                'Y32'        : 2,#Core.Y32,
-                'Y64'        : 3,#Core.Y64,
-                #TODO: other modes
-                #'RGB555'     : Core.RGB555,
-                #'RGB565'     : Core.RGB565,
-                #'RGB24'      : Core.RGB24,
-                #'RGB32'      : Core.RGB32,
-                #'BGR24'      : Core.BGR24,
-                #'BGR32'      : Core.BGR32,
-                #'BAYER RG8'  : Core.BAYER_RG8,
-                #'BAYER RG16' : Core.BAYER_RG16,
-                #'I420'       : Core.I420,
-                #'YUV411'     : Core.YUV411,
-                #'YUV422'     : Core.YUV422,
-                #'YUV444'     : Core.YUV444
-               }[mode]
-
-    def __getFormatId(self,mode):
-        return {0      : 'B',
-                1      : 'H',
-                2      : 'I',
-                3      : 'L',
-                #'RGB555'     : Core.RGB555,
-                #'RGB565'     : Core.RGB565,
-                #'RGB24'      : Core.RGB24,
-                #'RGB32'      : Core.RGB32,
-                #'BGR24'      : Core.BGR24,
-                #'BGR32'      : Core.BGR32,
-                #'BAYER RG8'  : Core.BAYER_RG8,
-                #'BAYER RG16' : Core.BAYER_RG16,
-                #'I420'       : Core.I420,
-                #'YUV411'     : Core.YUV411,
-                #'YUV422'     : Core.YUV422,
-                #'YUV444'     : Core.YUV444
-               }[mode]
-
-    def __getDtypeId(self,mode):
-        return {0       : 'uint8',
-                1      : 'uint16',
-                2      : 'uint32',
-                3      : 'uint64',
-                #'RGB555'     : Core.RGB555,
-                #'RGB565'     : Core.RGB565,
-                #'RGB24'      : Core.RGB24,
-                #'RGB32'      : Core.RGB32,
-                #'BGR24'      : Core.BGR24,
-                #'BGR32'      : Core.BGR32,
-                #'BAYER RG8'  : Core.BAYER_RG8,
-                #'BAYER RG16' : Core.BAYER_RG16,
-                #'I420'       : Core.I420,
-                #'YUV411'     : Core.YUV411,
-                #'YUV422'     : Core.YUV422,
-                #'YUV444'     : Core.YUV444
-               }[mode]
 
 class CodecPipeline(Codec, list):
     """The codec class used when encoding/decoding data with multiple encoders
