@@ -99,7 +99,8 @@ class TaurusImageItem(ImageItem, TaurusBaseComponent):
         dtype = value.type
         if dtype == DevEncoded:
             return CodecFactory().decode(value.value)
-        raise TypeError("Unsupported video from data type '%s'" % str(dtype))
+        return value.value
+        #raise TypeError("Unsupported video from data type '%s'" % str(dtype))
         
     def handleEvent(self, evt_src, evt_type, evt_value):
         if evt_type == TaurusEventType.Error:
@@ -213,10 +214,10 @@ class TaurusGraphicsWindow(GraphicsLayoutWidget):
         
     
 def main():
-    import sys
+    from taurus.qt.qtgui.application import TaurusApplication
 
-    app = Qt.QApplication([])
-    models = sys.argv[1:]
+    app = TaurusApplication()
+    models = app.get_command_line_args()
 
     window = Qt.QWidget()
     layout = Qt.QVBoxLayout(window)
