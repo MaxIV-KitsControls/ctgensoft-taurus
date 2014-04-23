@@ -26,18 +26,31 @@
 
 import time
 
+try:
+    import ordereddict
+    OrderedDict = ordereddict.OrderedDict
+except ImportError:
+    OrderedDict = dict
+
 from taurus.qt import Qt
 
-from pyqtgraph import ImageItem, ViewBox, GridItem, ROI
+from pyqtgraph import ImageItem, ViewBox, GridItem
 from pyqtgraph import GraphicsView, GraphicsLayoutWidget
 
 from taurus.core import TaurusEventType
 from taurus.core.util.codecs import CodecFactory
 from taurus.qt.qtgui.base import TaurusBaseComponent
 
-Signal = Qt.pyqtSignal
+try:
+    Slot = Qt.Slot
+    Signal = Qt.Signal
+    Property = Qt.Property
+except AttributeError:
+    Slot = Qt.pyqtSlot
+    Signal = Qt.pyqtSignal
+    Property = Qt.pyqtProperty
 
-
+    
 class QFreqCounter(Qt.QObject):
 
     freqChanged = Signal(float)
@@ -63,32 +76,25 @@ class QFreqCounter(Qt.QObject):
         return self
 
 
-class VideoItemMixin(TaurusBaseComponent):
-
-    def __init__(self):
-        TaurusBaseComponent.__init__(self, self.__class__.__name__)
-        self.data_fps = QFreqCounter()
-        self.paint_fps = QFreqCounter()
-        
-        
-class VideoItem(ImageItem, VideoItemMixin):
+class TaurusImageItem(ImageItem, TaurusBaseComponent):
 
     frameChanged = Qt.Signal(object)
     
     def __init__(self, *args, **kwargs):
         model = kwargs.pop('model', None)
         ImageItem.__init__(self, *args, **kwargs)
-        VideoItemMixin.__init__(self)
+        TaurusBaseComponent.__init__(self, self.__class__.__name__)
         self.frameChanged.connect(self.onFrameChanged)
         if model is not None:
             self.setModel(model)
 
     def toFrame(self, value):
         # Ugly hack: import PyTango
+        #@todo: replace this (Tango-centric).
         try:
-            from PyTango import DevEncoded  #@todo: replace this (Tango-centric).
-        except:
-            DevEncoded = 28 #@todo: hardcoded fallback to be replaced when the data types are handled in Taurus
+            from PyTango import DevEncoded  
+        except ImportError:
+            DevEncoded = 28
 
         dtype = value.type
         if dtype == DevEncoded:
@@ -119,15 +125,16 @@ class VideoItem(ImageItem, VideoItemMixin):
             self.info('Ignoring event. Reason: empty data')
             return
                
-        self.data_fps += 1
         self.frameChanged.emit(frame)
         return frame
         
     def onFrameChanged(self, frame):
-        self.setImage(frame)
+        #pyqtgraph transposes the image to we give it transposed
+        view = frame.swapaxes(0, 1)[:, ::-1]
+        self.setImage(view)
 
 
-class VideoGraphicsView(GraphicsView):
+class TaurusGraphicsView(GraphicsView):
 
     def __init__(self, *args, **kwargs):
         GraphicsView.__init__(self, *args, **kwargs)
@@ -135,32 +142,70 @@ class VideoGraphicsView(GraphicsView):
         self.__grid = GridItem()
         self.__view_box.addItem(self.__grid)
         self.setCentralItem(self.__view_box)
+        self.__model_items = OrderedDict()
 
-    def addModel(self, *args, **kwargs):
-        roi = ROI((0,0), removable=True)
-        self.__view_box.addItem(roi)
-        video_item = VideoItem(*args, **kwargs)
-        video_item.setParentItem(roi)
+    def getViewBox(self):
+        """
+        Returns the active view box
+        """
+        return self.__view_box
 
-        def onFrameChanged(data):
-            rw, rh = roi.size()
-            dh, dw = data.shape
-            if rw != dw or rh != dh:
-                print "resize_roi"
-                roi.setSize(dw, dh)
+    def getGrid(self):
+        """
+        Returns the grid for the active view box
+        """
+        return self.__grid
 
-        def onRemoveVideo():
-            roi.sigRemoveRequested.disconnect(onRemoveVideo)
-            video_item.frameChanged.disconnect(onFrameChanged)
-            video_item.setModel(None)
-            self.__view_box.removeItem(roi)
-            
-        roi.sigRemoveRequested.connect(onRemoveVideo)
-        video_item.frameChanged.connect(onFrameChanged)
-        return video_item
+    def getModelItems(self):
+        return self.__model_items
+    
+    def getModelItem(self, model_name):
+        return self.__model_items[model_name]
+
+    def addModelItem(self, model_name, image_item):
+        item = self._addModelItem(image_item)
+        self.__model_items[model_name] = item
+
+    def _addModelItem(self, image_item):
+        """
+        Add an image item to the scene. Default implementation just adds it
+        to the active view box.
+        Returns the actual root node that was added. In default implementation
+        it is the same image item that was given as parameter.
+        """
+        self.getViewBox().addItem(image_item)
+        return image_item
+
+    def removeModelItems(self, names):
+        viewBox = self.getViewBox()
+        for name in names:
+            item = self.__model_items[name]
+            viewBox.removeItem(item)
+
+    @Slot(list)
+    def setModel(self, model_names):
+        if model_names is None:
+            model_names = []
+        if isinstance(model_names, (basestring,)):
+            model_names = [model_names]
+        old_items, new_items = set(self.__model_items), set(model_names)
+        del_items = old_items.difference(new_items)
+        new_items.difference_update(old_items)
+        self.removeModelItems(del_items)
+        for model_name in new_items:
+            item = TaurusImageItem(model=model_name)
+            self.addModelItem(model_name, item)
+
+    def getModel(self):
+        return self.__model_items.keys()
+
+    def resetModel(self):
+        self.setModel(None)
+
+    model = Property(list, getModel, setModel, resetModel)
 
 
-class VideoGraphicsWindow(GraphicsLayoutWidget):
+class TaurusGraphicsWindow(GraphicsLayoutWidget):
 
     def __init__(self, *args, **kwargs):
         GraphicsLayoutWidget.__init__(self, *args, **kwargs)
@@ -175,18 +220,10 @@ def main():
 
     window = Qt.QWidget()
     layout = Qt.QVBoxLayout(window)
-    view = VideoGraphicsView()
+    view = TaurusGraphicsView()
     layout.addWidget(view, 1)
 
-    for model in models:
-#        dataFreqLabel = limavideo.ValueLabel(fmt="%s data freq {value:.1f} data/s" % model)
-#        paintFreqLabel = limavideo.ValueLabel(fmt="%s paint freq {value:.1f} paint/s" % model)
-#        layout.addWidget(dataFreqLabel, 0)
-#        layout.addWidget(paintFreqLabel, 0)
-
-        video_item = view.addModel(model=model)
-#        video_item.data_fps.freqChanged.connect(dataFreqLabel.setValue)
-#        video_item.paint_fps.freqChanged.connect(paintFreqLabel.setValue)
+    view.model = models
         
     window.show()
     app.exec_()
