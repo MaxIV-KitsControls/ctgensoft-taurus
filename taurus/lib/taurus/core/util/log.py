@@ -45,6 +45,7 @@ import threading
 from object import Object
 from wrap import wraps
 from excepthook import BaseExceptHook
+from taurus import tauruscustomsettings
 
 #
 # _srcfile is used when walking the stack to check when we've got the first
@@ -392,6 +393,11 @@ class _LoggerHelper(object):
         self.log_obj = None
         self.log_handlers = []
         self.log_children = {}
+
+        init_logger = getattr(tauruscustomsettings, \
+                'ENABLE_TAURUS_LOGGER', True) 
+        if init_logger:
+            self.initLogger()
 
     def setName(self, name):
         self.name = name
@@ -786,6 +792,10 @@ class LogFilter(logging.Filter):
         return ok
 
 def __getrootlogger():
+    init_logger = getattr(tauruscustomsettings, \
+            'ENABLE_TAURUS_LOGGER', True) 
+    if init_logger:
+        _LoggerHelper.initLogger()    
     return logging.getLogger("TaurusRootLogger")
 
 

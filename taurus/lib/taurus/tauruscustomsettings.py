@@ -51,6 +51,18 @@ T_FORM_CUSTOM_WIDGET_MAP = \
 # False (or commented out) for backwards compatibility
 LIGHTWEIGHT_IMPORTS = False
 
+# Use Taurus Logger API: 
+# True (or commented out) enables the initiatialization of Taurus logger.
+# False Taurus assumed an external Logger system; If it does not exist, 
+#       the Logger API will not work. Showing the following message 
+#       the first time that any Logger message (warning, debug, info, etc)
+#       was executed.
+#
+#    i.e.    Logger.warning('asd')
+#            No handlers could be found for logger "TaurusRootLogger"
+
+ENABLE_TAURUS_LOGGER = True
+
 # Extra Taurus schemes. You can add a list of modules to be loaded for
 # providing support to new schemes
 # EXTRA_SCHEME_MODULES = ['myownschememodule']
