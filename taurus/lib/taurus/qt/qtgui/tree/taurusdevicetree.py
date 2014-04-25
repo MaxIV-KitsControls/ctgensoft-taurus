@@ -1215,7 +1215,7 @@ class TaurusTreeNode(Qt.QTreeWidgetItem, TaurusBaseComponent):
         return True
 
     def __str__(self):
-        return self._logger.getName() + "(" + self.modelName + ")"
+        return self.getTaurusLogger().getName() + "(" + self.modelName + ")"
 
     def getModelClass(self):
         return taurus.core.taurusdevice.TaurusDevice

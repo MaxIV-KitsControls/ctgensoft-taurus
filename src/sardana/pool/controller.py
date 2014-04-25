@@ -299,7 +299,7 @@ class Controller(object):
     def __init__(self, inst, props, *args, **kwargs):
         self._inst_name = inst
         self._log = Logger("Controller.%s" % inst)
-        self._log._logger.getLogObj().setLevel(getLogLevel())
+        self._log.getTaurusLogger().getLogObj().setLevel(getLogLevel())
         self._args = args
         self._kwargs = kwargs
         self._api_version = self._findAPIVersion()

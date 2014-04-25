@@ -140,7 +140,7 @@ class TaurusEmitterThread(Qt.QThread):
         Qt.QThread.__init__(self, parent)
         self.name = name
         self.log = Logger('TaurusEmitterThread(%s)'%self.name)
-        self.log._logger.setLogLevel(self.log._logger.Info)
+        self.log.getTaurusLogger().setLogLevel(self.log.getTaurusLogger().Info)
         self.queue = queue or Queue.Queue()
         self.todo = Queue.Queue()
         self.method = method
@@ -266,7 +266,7 @@ class SingletonWorker():#Qt.QObject):
     def __init__(self,parent=None,name='',queue=None,method=None,cursor=None,sleep=5000,log=_LoggerHelper.Warning,start=True):
         self.name = name
         self.log = Logger('SingletonWorker(%s)'%self.name)
-        self.log._logger.setLogLevel(log)
+        self.log.getTaurusLogger().setLogLevel(log)
         self.log.info('At SingletonWorker.__init__(%s)'%self.name)
         self.parent = parent
         self.method = method

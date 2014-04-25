@@ -243,10 +243,10 @@ class Door(SardanaDevice):
             try:
                 filter = LogFilter(level=getattr(self, level))
             except:
-                filter = LogFilter(level=getattr(self._logger, level))
+                filter = LogFilter(level=getattr(self.getTaurusLogger(), level))
 
             handler.addFilter(filter)
-            self._logger.addLogHandler(handler)
+            self.getTaurusLogger().addLogHandler(handler)
             format = None
             self._handler_dict[level] = handler, filter, format
     

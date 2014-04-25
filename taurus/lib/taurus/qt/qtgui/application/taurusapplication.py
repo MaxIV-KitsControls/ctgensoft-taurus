@@ -64,7 +64,7 @@ class STD(Logger):
         """
         Logger.__init__(self, name=name, parent=parent, format=format)
         self.buffer = ''
-        self._logger.getLogObj().propagate = False
+        self.getTaurusLogger().getLogObj().propagate = False
         self.std = std
 
     def addLogHandler(self, handler):
@@ -74,7 +74,7 @@ class STD(Logger):
 
         :param handler: new handler"""
         _LoggerHelper.addLogHandler(self, handler)
-        self._logger.getLogObj().propagate = not len(self._logger.log_handlers)
+        self.getTaurusLogger().getLogObj().propagate = not len(self.getTaurusLogger().log_handlers)
 
     def write(self, msg):
         try:
@@ -104,7 +104,7 @@ class STD(Logger):
             #interpreted as a separate line in the client
             if buff[-1] == '\n':
                 buff = buff[:-1]
-            if self._logger.log_handlers:
+            if self.getTaurusLogger().log_handlers:
                 self.log(_LoggerHelper.Console, '\n' + buff)
             self.buffer = ""
         finally:
@@ -337,10 +337,10 @@ class TaurusApplication(Qt.QApplication, Logger):
             _LoggerHelper.addRootLogHandler(f_h)
             if self._out is not None:
                 self._out.std = sys.__stdout__
-                self._out._logger.addLogHandler(f_h)
+                self._out.getTaurusLogger().addLogHandler(f_h)
             if self._out is not None:
                 self._err.std = sys.__stderr__
-                self._err._logger.addLogHandler(f_h)
+                self._err.getTaurusLogger().addLogHandler(f_h)
             self.info("Logs will be saved in %s", log_file_name)
         except:
             self.warning("'%s' could not be created. Logs will not be stored",

@@ -359,13 +359,13 @@ class MSDoor(MSObject):
         if isinstance(par_str_list, (str, unicode)):
             par_str_list = par_str_list,
 
-        if not hasattr(self._logger, "Output"):
+        if not hasattr(self.getTaurusLogger(), "Output"):
             import sys
             import logging
             _LoggerHelper.addLevelName(15, "OUTPUT")
 
             def output(loggable, msg, *args, **kw):
-                loggable._logger.getLogObj().log(_LoggerHelper.Output, msg, *args, **kw)
+                loggable.getTaurusLogger().getLogObj().log(_LoggerHelper.Output, msg, *args, **kw)
             Logger.output = output
 
             Logger.disableLogOutput()

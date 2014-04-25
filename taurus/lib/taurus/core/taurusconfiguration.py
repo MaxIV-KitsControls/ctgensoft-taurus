@@ -150,11 +150,11 @@ class TaurusConfiguration(TaurusModel):
     def _getDev(self):
         dev = None
         attrObj = self.getParentObj()
-        if attrObj is None or attrObj._logger.getParent() is None:
+        if attrObj is None or attrObj.getTaurusLogger().getParent() is None:
             devname = self._getDevName()
             dev = self.factory().getDevice(devname)
         else:
-            dev = attrObj._logger.getParent()
+            dev = attrObj.getTaurusLogger().getParent()
         return dev
     
     def _getAttr(self, createAttr=False):

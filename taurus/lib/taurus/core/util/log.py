@@ -778,6 +778,11 @@ class Logger(Object):
         """
         self._logger.getLogObj().exception(msg, *args)
 
+    def getTaurusLogger(self):
+        """ Return the Taurus logger obj 
+        """
+        return self._logger
+
 
 
 class LogFilter(logging.Filter):

@@ -51,7 +51,7 @@ def main():
 
     _LoggerHelper.setLogLevel(_LoggerHelper.Debug)
     _log = Logger(__name__)
-    _log._logger.initLogger()
+    _log.getTaurusLogger().initLogger()
     
     Manager().setOperationMode(OperationMode.OFFLINE)
     

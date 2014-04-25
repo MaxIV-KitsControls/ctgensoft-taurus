@@ -40,7 +40,7 @@ def prepare_macroserver(util):
     _LoggerHelper.addLevelName(15, "OUTPUT")
 
     def output(loggable, msg, *args, **kw):
-        loggable._logger.getLogObj().log(_LoggerHelper.Output, msg, *args, **kw)
+        loggable.getTaurusLogger().getLogObj().log(_LoggerHelper.Output, msg, *args, **kw)
 
     Logger.output = output
 
