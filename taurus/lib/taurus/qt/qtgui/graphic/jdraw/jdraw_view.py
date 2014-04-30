@@ -151,6 +151,8 @@ class TaurusJDrawSynopticsView(Qt.QGraphicsView, TaurusBaseWidget):
     #@Qt.pyqtSignature("selectGraphicItem(QString)")
     @Qt.pyqtSignature("selectGraphicItem(const QString &)")
     def selectGraphicItem(self,item_name):
+        if not self.scene():
+            return False
         self.scene().selectGraphicItem(item_name)
         return False
 
