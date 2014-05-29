@@ -29,7 +29,8 @@
 __all__ = ["LogIt", "TraceIt", "DebugIt", "InfoIt", "WarnIt", "ErrorIt",
            "CriticalIt", "MemoryLogHandler", "LogExceptHook", "Logger",
            "LogFilter",
-           "_log", "trace", "debug", "info", "warning", "error", "critical"]
+           "_log", "trace", "debug", "info", "warning", "error", "fatal",
+           "critical"]
 
 __docformat__ = "restructuredtext"
 
@@ -353,6 +354,9 @@ class _LoggerHelper(object):
     #: Critical message level (constant)
     Critical = logging.CRITICAL
 
+    #: Fatal message level (constant)
+    Fatal = logging.FATAL
+
     #: Error message level (constant)
     Error    = logging.ERROR
 
@@ -662,6 +666,10 @@ class Logger(Object):
         self._logger.setFullName(log_full_name)
         self._logger.setLogObj(log_full_name)
 
+    def cleanUp(self):
+        """The cleanUp. Default implementation does nothing
+           Overwrite when necessary"""
+        pass
 
     def trace(self, msg, *args, **kw):
         """Record a trace message in this object's logger. Accepted *args* and
@@ -758,6 +766,16 @@ class Logger(Object):
         """
         self._logger.getLogObj().error(msg, *args, **kw)
 
+    def fatal(self, msg, *args, **kw):
+        """Record a fatal message in this object's logger. Accepted *args* and
+           *kwargs* are the same as :meth:`logging.Logger.fatal`.
+
+           :param msg: (str) the message to be recorded
+           :param args: list of arguments
+           :param kw: list of keyword arguments
+        """
+        self._logger.getLogObj().fatal(msg, *args, **kw)
+
     def critical(self, msg, *args, **kw):
         """Record a critical message in this object's logger. Accepted *args* and
            *kwargs* are the same as :meth:`logging.Logger.critical`.
@@ -823,6 +841,9 @@ def warning(msg, *args, **kw):
 
 def error(msg, *args, **kw):
     return __getrootlogger().error(msg, *args, **kw)
+
+def fatal(msg, *args, **kw):
+    return __getrootlogger().fatal(msg, *args, **kw)
 
 def critical(msg, *args, **kw):
     return __getrootlogger().critical(msg, *args, **kw)

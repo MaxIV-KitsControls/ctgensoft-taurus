@@ -32,8 +32,8 @@ __all__ = ['check_dependencies', 'log_dependencies', 'getSchemeFromName',
            'setLogLevel', 'setLogFormat', 'getLogLevel', 'getLogFormat',
            'resetLogLevel', 'resetLogFormat',
            'enableLogOutput', 'disableLogOutput', 'initLogger',
-           'log', 'trace', 'debug', 'info', 'warning', 'error', 'critical',
-           'changeDefaultPollingPeriod']
+           'log', 'trace', 'debug', 'info', 'warning', 'error', 'fatal',
+           'critical', 'changeDefaultPollingPeriod']
 
 __docformat__ = "restructuredtext"
 
@@ -462,26 +462,26 @@ def Object(klass, name):
     return Factory(getSchemeFromName(name)).getObject(klass, name)
 
 from taurus.core.util import log as __log_mod
-
+from taurus.core.util.log import _LoggerHelper
 
 Logger = __log_mod.Logger
-Critical = __log_mod._LoggerHelper.Critical
-Error = __log_mod._LoggerHelper.Error
-Warning = __log_mod._LoggerHelper.Warning
-Info = __log_mod._LoggerHelper.Info
-Debug = __log_mod._LoggerHelper.Debug
-Trace = __log_mod._LoggerHelper.Trace
+Critical = _LoggerHelper.Critical
+Error = _LoggerHelper.Error
+Warning = _LoggerHelper.Warning
+Info = _LoggerHelper.Info
+Debug = _LoggerHelper.Debug
+Trace = _LoggerHelper.Trace
 
-setLogLevel = __log_mod._LoggerHelper.setLogLevel
-getLogLevel = __log_mod._LoggerHelper.getLogLevel
-resetLogLevel = __log_mod._LoggerHelper.resetLogLevel 
-setLogFormat = __log_mod._LoggerHelper.setLogFormat
-getLogFormat = __log_mod._LoggerHelper.getLogFormat
-resetLogFormat = __log_mod._LoggerHelper.resetLogFormat
+setLogLevel = _LoggerHelper.setLogLevel
+setLogFormat = _LoggerHelper.setLogFormat
+getLogLevel = _LoggerHelper.getLogLevel
+getLogFormat = _LoggerHelper.getLogFormat
+resetLogLevel = _LoggerHelper.resetLogLevel
+resetLogFormat = _LoggerHelper.resetLogFormat
 
-enableLogOutput = __log_mod._LoggerHelper.enableLogOutput
-disableLogOutput = __log_mod._LoggerHelper.disableLogOutput
-initLogger = __log_mod._LoggerHelper.initLogger
+enableLogOutput = _LoggerHelper.enableLogOutput
+disableLogOutput = _LoggerHelper.disableLogOutput
+initLogger = _LoggerHelper.initLogger
 
 log = __log_mod._log
 trace = __log_mod.trace
@@ -489,6 +489,7 @@ debug = __log_mod.debug
 info = __log_mod.info
 warning = __log_mod.warning
 error = __log_mod.error
+fatal = __log_mod.fatal
 critical = __log_mod.critical
 
 def changeDefaultPollingPeriod(period):

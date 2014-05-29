@@ -32,7 +32,7 @@ __all__ = ["TaurusDevicePanel","TaurusDevPanel"]
 __docformat__ = 'restructuredtext'
 
 import re,traceback
-from taurus.qt import Qt
+from taurus.external.qt import Qt
 
 import taurus.qt.qtgui.resource
 from taurus.core.taurusbasetypes import TaurusSWDevState, TaurusElementType
@@ -545,14 +545,8 @@ def TaurusDevicePanelMain():
     args = app.get_command_line_args()
     options = app.get_command_line_options()
     
-    app.setLogLevel(taurus.Debug)
-    
     w = TaurusDevicePanel()
     w.show()
-    if options.tango_host is None:
-        options.tango_host = taurus.Database().getNormalName()
-    try: w.setTangoHost(options.tango_host)
-    except: pass
     
     if len(args) == 0:
         from taurus.qt.qtgui.panel import TaurusModelChooser
