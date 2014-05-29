@@ -82,7 +82,7 @@ class LogIt(object):
 
         class Example(Logger):
 
-            @LogIt(Logger.Debug)
+            @LogIt(taurus.Debug)
             def go(self):
                 print "Hello world "
 
@@ -101,7 +101,7 @@ class LogIt(object):
 
         class Example(Logger):
 
-            @LogIt(Logger.Debug, showargs=True, showret=True)
+            @LogIt(taurus.Debug, showargs=True, showret=True)
             def go(self, msg):
                 msg = "Hello world",msg
                 print msg

@@ -105,8 +105,8 @@ class TaurusManager(Singleton, Logger):
         if self._plugins is None:
             return
         self.debug("[TaurusManager] cleanUp")
-#        for f_scheme, f in self._plugins.items():
-#            f().cleanUp()
+        for f_scheme, f in self._plugins.items():
+            f().cleanUp()
         self._plugins = None
         
         self._thread_pool.join()
