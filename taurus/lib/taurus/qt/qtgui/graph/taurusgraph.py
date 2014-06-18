@@ -80,10 +80,11 @@ class TaurusImageItem(ImageItem, TaurusBaseComponent):
 
     frameChanged = Qt.Signal(object)
     
-    def __init__(self, *args, **kwargs):
+    def __init__(self, flipAxes=[False, False], *args, **kwargs):
         model = kwargs.pop('model', None)
         ImageItem.__init__(self, *args, **kwargs)
         TaurusBaseComponent.__init__(self, self.__class__.__name__)
+        self.flipAxes = flipAxes
         self.frameChanged.connect(self.onFrameChanged)
         if model is not None:
             self.setModel(model)
@@ -128,10 +129,27 @@ class TaurusImageItem(ImageItem, TaurusBaseComponent):
                
         self.frameChanged.emit(frame)
         return frame
-        
+
+    def setFlipAxes(self, x=False, y=False):
+        """
+        Flip the image on the axes.
+
+        By default the image is displayed from right-to-left into the positive
+        x-axes, and from top-to-down into the position y-axes.
+
+        :param x: Flip the image on the x-axes
+        :type x:bool
+        :param y: Flip the image on the y-axes
+        :type y:bool
+        """
+        self.flipAxes = [x, y]
+        # TODO it should update the current displayed image
+
     def onFrameChanged(self, frame):
         #pyqtgraph transposes the image to we give it transposed
-        view = frame.swapaxes(0, 1)[:, ::-1]
+        flipX = -1 if self.flipAxes[0] else 1
+        flipY = -1 if self.flipAxes[1] else 1
+        view = frame.swapaxes(0, 1)[::flipX, ::flipY]
         self.setImage(view)
 
 
