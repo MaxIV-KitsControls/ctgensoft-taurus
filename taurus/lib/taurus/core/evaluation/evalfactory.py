@@ -536,7 +536,13 @@ class EvaluationAttribute(TaurusAttribute):
             self.applyTransformation()
         return self._value    
 
-    def poll(self):
+    def poll(self, asynch=False, req_id=None):
+        # asynchronous requests are not supported. If asked to do it,
+        # just return an ID of 1 and in the reply (req_id != None) we do a
+        # synchronous polling.
+        if asynch is True:
+            return 1
+
         v = self.read(cache=False)
         self.fireEvent(TaurusEventType.Periodic, v)
             
