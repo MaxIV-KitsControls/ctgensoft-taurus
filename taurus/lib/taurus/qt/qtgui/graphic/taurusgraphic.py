@@ -203,7 +203,8 @@ class TaurusGraphicsScene(Qt.QGraphicsScene):
                 standAlone = args.standAlone
             else:
                 clName,clParam,objName = self.panel_launcher,args,args
-            
+            if not clName or clName == 'noPanel': 
+                return
             self.debug('TaurusGraphicsScene.showNewPanel(%s,%s,%s)'%(clName,clParam,objName))
             if isinstance(clName,ExternalAppAction):
                 clName.actionTriggered(clParam if isinstance(clParam,(list,tuple)) else [clParam])
@@ -212,7 +213,7 @@ class TaurusGraphicsScene(Qt.QGraphicsScene):
                     klass = self.getClass(clName)
                     if klass is None: 
                         self.warning("%s Class not found!"%clName)
-                        return
+                        klass = self.getClass("TaurusDevicePanel")
                 else:
                     klass,clName = clName,getattr(clName,'__name__',str(clName))
                 widget = klass() #self.parent())
@@ -762,8 +763,11 @@ class QGraphicsTextBoxing(Qt.QGraphicsItemGroup):
     def setBrush(self, brush):
         self._rect.setBrush(brush)
 
+    def pen(self):
+        return self._rect.pen()
+
     def setPen(self, pen):
-        self._text.setDefaultTextColor(pen.color())
+        self._rect.setPen(pen)
 
     def setDefaultTextColor(self, color):
         self._text.setDefaultTextColor(color)
@@ -995,7 +999,7 @@ class TaurusGraphicsAttributeItem(TaurusGraphicsItem):
                 if quality == PyTango.AttrQuality.ATTR_VALID and self._validBackground:
                     background = self._validBackground
                 else:
-                    background = QT_ATTRIBUTE_QUALITY_PALETTE.qcolor(quality)
+                    background, _ = QT_ATTRIBUTE_QUALITY_PALETTE.qcolor(quality)
                 self.setBrush(Qt.QBrush(background))
             except:
                 self.warning('In TaurusGraphicsAttributeItem(%s).updateStyle(%s): colors failed!'%(self._name,self._currText))
@@ -1199,7 +1203,7 @@ TYPE_TO_GRAPHICS = {
              "Label"          : QGraphicsTextBoxing,
              "Line"           : Qt.QGraphicsLineItem,
              "Group"          : TaurusGroupItem,
-             "SwingObject"    : Qt.QGraphicsRectItem,
+             "SwingObject"    : TaurusTextAttributeItem,
              "Image"          : Qt.QGraphicsPixmapItem,
              "Spline"         : QSpline, },
 
