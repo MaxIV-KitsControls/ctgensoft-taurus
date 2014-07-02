@@ -46,6 +46,10 @@ T_FORM_CUSTOM_WIDGET_MAP = \
      'IORegister':('taurus.qt.qtgui.extra_pool.PoolIORegisterTV', (), {})
     }
 
+# Compact mode for widgets
+# True sets the preferred mode of TaurusForms to use "compact" widgets
+T_FORM_COMPACT = False
+
 # Lightweight imports:
 # True enables delayed imports (may break older code).
 # False (or commented out) for backwards compatibility
@@ -66,6 +70,14 @@ ENABLE_TAURUS_LOGGER = True
 # Extra Taurus schemes. You can add a list of modules to be loaded for
 # providing support to new schemes
 # EXTRA_SCHEME_MODULES = ['myownschememodule']
+
+# ----------------------------------------------------------------------------
+# PLY (lex/yacc) optimization: 1=Active (default) , 0=disabled. 
+# Set PLY_OPTIMIZE = 0 if you are getting yacc exceptions while loading 
+# synoptics   
+# ----------------------------------------------------------------------------
+
+PLY_OPTIMIZE = 1
 
 # ----------------------------------------------------------------------------
 # Taurus namespace
