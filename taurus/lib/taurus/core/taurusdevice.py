@@ -152,6 +152,12 @@ class TaurusDevice(TaurusModel):
     def _createHWObject(self):
         raise NotImplementedError
 
+    # command API
+
+    def command(self, cmd_name, args=None, kwargs=None, asynch=False,
+                callback=None, error_callback=None, timeout=None):
+        raise NotImplementedError
+
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
     # TaurusModel implementation
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
@@ -261,3 +267,4 @@ class TaurusDevice(TaurusModel):
         implementation simply polls each attribute one by one'''
         for attr in attrs.values():
             attr.poll()
+
