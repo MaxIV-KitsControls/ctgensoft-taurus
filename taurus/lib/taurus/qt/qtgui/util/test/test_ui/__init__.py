@@ -23,10 +23,7 @@
 ##
 #############################################################################
 
-'''
-This resources module contains:
+"""This package provides a set of taurus wiget utilities like color management, 
+configuration, actions."""
 
-  - SimpleScalarViewer.jdw : a jdraw synoptic for testing visualization of 
-  scalars.  
-  - styles.jdw : a jdraw synoptic for testing rendering of different styles
-'''
+from .test_ui import *

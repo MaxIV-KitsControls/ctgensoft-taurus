@@ -29,13 +29,15 @@ import os
 import sys
 import functools
 
-#TODO: Change to taurus.external
-from taurus.qt import Qt
-from PyQt4 import uic
-#from taurus.external.qt import Qt
-#from taurus.external.qt import uic
+from taurus.external.qt import Qt
+from taurus.external.qt import uic
 
-def loadUi(obj, filename=None, path=None):
+
+class __UI(object):
+    pass
+
+
+def loadUi(obj, filename=None, path=None, with_ui=None):
     """
     Loads a QtDesigner .ui file into the given widget.
     If no filename is given, it tries to load from a file name which is the
@@ -60,9 +62,23 @@ def loadUi(obj, filename=None, path=None):
     if filename is None:
         filename = obj.__class__.__name__ + os.path.extsep + 'ui'
     full_name = os.path.join(path, filename)
-    uic.loadUi(full_name, baseinstance=obj)
 
+    if with_ui is not None:
+        ui_obj = __UI()
+        setattr(obj, with_ui, ui_obj)
+        previous_members = set(dir(obj))
 
+        uic.loadUi(full_name, baseinstance=obj)
+
+        post_members = set(dir(obj))
+        new_members = post_members.difference(previous_members)
+        for member_name in new_members:
+            member = getattr(obj, member_name)
+            setattr(ui_obj, member_name, member)
+            delattr(obj, member_name)
+    else:
+        uic.loadUi(full_name, baseinstance=obj)
+        
 def UILoadable(klass=None, with_ui=None):
     """
     A class decorator intended to be used in a Qt.QWidget to make its UI
@@ -106,13 +122,34 @@ def UILoadable(klass=None, with_ui=None):
                     can access all UI components [default: None, meaning no
                     member is created]
     :type with_ui: str
+
+    .. warning::
+        the current implementation (Jul14) doesn't prevent Qt from overloading
+        any members you might have defined previously by the widget object names
+        from the UI file. This happens even if *with_ui* parameter is given.
+        For example, if the UI contains a QPushButton with objectName
+        *my_button*::
+
+            @UILoadable(with_ui="_ui")
+            class MyWidget(Qt.QWidget):
+ 
+                def __init__(self, parent=None):
+                    Qt.QWidget.__init__(self, parent)
+                    self.my_button = "hello"
+                    self.loadUi()
+            widget = MyWidget()
+            print widget.my_button
+            <PyQt4.QtGui.QPushButton object at 0x159e2f8>
+
+        This little problem should be solved in the next taurus version.
     """
     if klass is None:
         return functools.partial(UILoadable, with_ui=with_ui)
-    klass.loadUi = loadUi
-    if with_ui is not None:
-        ui_prop = property(lambda x: x)
-        setattr(klass, with_ui, ui_prop)
+
+    def _loadUi(self, filename=None, path=None):
+        return loadUi(self, filename=filename, path=path, with_ui=with_ui)
+    
+    klass.loadUi = _loadUi
     return klass
 
 
