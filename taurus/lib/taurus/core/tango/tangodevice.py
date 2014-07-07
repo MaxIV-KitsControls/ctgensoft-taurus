@@ -25,12 +25,15 @@
 
 """This module contains all taurus tango database"""
 
+from __future__ import with_statement
+
 __all__ = ["TangoDevice"]
 
 __docformat__ = "restructuredtext"
 
 import time
 import PyTango
+from PyTango import CmdArgType
 
 from taurus import Factory
 from taurus.core.taurusdevice import TaurusDevice
@@ -46,12 +49,104 @@ class _TangoInfo(object):
         self.server_host = 'Unknown'
         self.server_id = 'Unknown'
         self.server_version = 1
-                
+
+        
+class _TimeoutContext(object):
+
+    def __init__(self, device, timeout=None):
+        self.__device = device
+        self.__timeout = timeout
+
+    def __enter__(self):
+        timeout = self.__timeout
+        if timeout is None:
+            return
+        old_timeout = self.__device.get_timeout_millis()
+        timeout = int(timeout*1000)
+        if old_timeout == timeout:
+            self.__timeout = None
+        else:
+            self.__device.set_timeout_millis(timeout)
+            self.__timeout = old_timeout
+
+    def __exit__(self, etype, evalue, etraceback):
+        timeout = self.__timeout
+        if timeout is None:
+            return
+        self.__device.set_timeout_millis(timeout)
+
+
+class _CallbackModelContext(object):
+
+    def __init__(self, cb_model=None):
+        self.__cb_model = cb_model
+
+    def __enter__(self):
+        cb_model = self.__cb_model
+        if cb_model is None:
+            return
+        api_util = PyTango.ApiUtil.instance()
+        old_cb_model = api_util.get_asynch_cb_sub_model()
+        if old_cb_model == cb_model:
+            self.__cb_model = None
+        else:
+            api_util.set_asynch_cb_sub_model(cb_model)
+            self.__cb_model = old_cb_model
+
+    def __exit__(self, etype, evalue, etraceback):
+        cb_model = self.__cb_model
+        if cb_model is None:
+            return
+        api_util = PyTango.ApiUtil.instance()
+        api_util.set_asynch_cb_sub_model(cb_model)
+
+
 class TangoDevice(TaurusDevice):
+
     def __init__(self, name, **kw):
         """Object initialization."""
+        self.__commands_info = None
         self.call__init__(TaurusDevice, name, **kw)
 
+    def __refreshCommandInfo(self):
+        cmds_info = {}
+        for cmd_info in self.command_list_query():
+            cmds_info[cmd_info.cmd_name.lower()] = cmd_info
+        self.__commands_info = cmds_info
+        return cmds_info
+    
+    def __getCommandInfo(self, cmd_name):
+        # so far commands are not dynamic in Tango so we can create a cache
+        cmds_info = self.__commands_info
+        if cmds_info is None:
+            cmds_info = self.__refreshCommandInfo()
+        try:
+            return cmds_info[cmd_name.lower()]
+        except KeyError:
+            raise KeyError("Unknown command '{0}'".format(cmd_name))
+        
+    def __encodeCommandArguments(self, cmd_name, args, kwargs):
+        if args is None:
+            args = ()
+        if kwargs is None:
+            kwargs = {}        
+        if len(kwargs):
+            raise TypeError("Tango command doesn't support keyword arguments")
+        len_args = len(args)
+        if len_args > 1:
+            raise TypeError("{0}() takes exactly 1 argument ({1} given)".format(cmd_name, len_args))
+
+        cmd_info = self.__getCommandInfo(cmd_name)
+        param_type = cmd_info.in_type
+        if len_args == 0:
+            if param_type != CmdArgType.DevVoid:
+                raise TypeError("{0} takes exactly 1 argument (0 given)".format(cmd_name))
+            return args, kwargs
+
+        if param_type == CmdArgType.DevVoid:
+            raise TypeError("{0} takes no arguments (1 given)".format(cmd_name))
+        return args, kwargs
+        
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
     # TaurusModel necessary overwrite
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
@@ -64,6 +159,73 @@ class TangoDevice(TaurusDevice):
             cls._factory = Factory(scheme='tango')
         return cls._factory
 
+    # command API
+
+    def command(self, cmd_name, args=None, kwargs=None, asynch=False,
+                callback=None, timeout=None):
+        try:
+            return self.__command(cmd_name, args=args, kwargs=kwargs,
+                                  asynch=asynch, callback=callback,
+                                  timeout=timeout)
+        except Exception as e:
+            self.error("Error executing command '%s' on %s: %s", cmd_name,
+                       self.getNormalName(), str(e))
+            self.debug("Details:", exc_info=1)
+            raise
+                       
+    def __command(self, cmd_name, args=None, kwargs=None, asynch=False,
+                  callback=None, timeout=None):
+        args, kwargs = self.__encodeCommandArguments(cmd_name, args, kwargs)
+        cmd_args = [cmd_name] 
+        cmd_args.extend(args)
+        device = self.getHWObj()
+        cmd_info = self.__getCommandInfo(cmd_name)
+        def __cb(e):
+            error = False
+            if e.err:
+                error = True
+                cmd_result = PyTango.DevFailed(*e.errors)
+            else:
+                if cmd_info.out_type == CmdArgType.DevVoid:
+                    cmd_result = None
+                else:
+                    cmd_result = e.argout_raw.extract()
+            try:
+                callback(cmd_result, error)
+            except:
+                self.error("Unhandled exception running '{0}' "
+                           "callback".format(cmd_name))
+                self.debug("Details:", exc_info=1)
+        if asynch:
+            if callback is None:
+                # forget = True
+                cmd_args.append(True)
+            else:
+                cmd_args.append(__cb)
+            with _TimeoutContext(device, timeout):
+                with _CallbackModelContext(PyTango.cb_sub_model.PUSH_CALLBACK):
+                    return device.command_inout_asynch(*cmd_args)
+        else:
+            if callback:
+                error = False
+                try:
+                    with _TimeoutContext(device, timeout):
+                        result = device.command_inout(*cmd_args)
+                except Exception as exc:
+                    error = True
+                    result = exc
+                    raise
+                finally:
+                    try:
+                        callback(result, error)
+                    except:
+                        self.error("Unhandled exception running '{0}' "
+                                   "callback".format(cmd_name))
+                return result
+            else:  
+                with _TimeoutContext(device, timeout):
+                    return device.command_inout(*cmd_args)
+    
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
     # TaurusDevice necessary overwrite
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
