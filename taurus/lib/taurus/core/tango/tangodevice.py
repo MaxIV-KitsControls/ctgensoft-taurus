@@ -179,20 +179,24 @@ class TangoDevice(TaurusDevice):
         cmd_args = [cmd_name] 
         cmd_args.extend(args)
         device = self.getHWObj()
+        cmd_info = self.__getCommandInfo(cmd_name)
         def __cb(e):
-            if callback:
-                error = False
-                if e.err:
-                    error = True
-                    cmd_result = PyTango.DevFailed(*e.errors)
+            error = False
+            if e.err:
+                error = True
+                cmd_result = PyTango.DevFailed(*e.errors)
+            else:
+                if cmd_info.out_type == CmdArgType.DevVoid:
+                    cmd_result = None
                 else:
                     cmd_result = e.argout_raw.extract()
-                try:
-                    callback(cmd_result, error)
-                except:
-                    self.error("Unhandled exception running '{0}' "
-                               "callback".format(cmd_name))
-                    self.debug("Details:", exc_info=1)                            
+            try:
+                callback(cmd_result, error)
+            except:
+                self.error("Unhandled exception running '{0}' "
+                           "callback".format(cmd_name))
+                self.debug("Details:", exc_info=1)
+
         if asynch:
             if callback is None:
                 # forget = True
@@ -221,8 +225,7 @@ class TangoDevice(TaurusDevice):
                 return result
             else:  
                 with _TimeoutContext(device, timeout):
-                    return  device.command_inout(*cmd_args)              
-                        
+                    return device.command_inout(*cmd_args)
     
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
     # TaurusDevice necessary overwrite
