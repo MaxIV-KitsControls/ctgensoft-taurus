@@ -106,6 +106,9 @@ class TaurusCommandToolButton(Qt.QToolButton, TaurusBaseCommandWidget):
                                 TaurusBaseCommandWidget.setDangerMessage,
                                 TaurusBaseCommandWidget.resetDangerMessage)
 
+    autoToolTip = Qt.Property(bool, TaurusBaseCommandWidget.getAutoTooltip,
+                              TaurusBaseCommandWidget.setAutoTooltip)
+
 
 def main():
     import sys
