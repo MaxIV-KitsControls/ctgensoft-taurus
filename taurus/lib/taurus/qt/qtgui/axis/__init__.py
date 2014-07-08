@@ -30,3 +30,4 @@ axis based elements (motors)
 
 __docformat__ = 'restructuredtext'
 
+from .axiswidget import AxisWidget
