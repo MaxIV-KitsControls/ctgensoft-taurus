@@ -35,7 +35,6 @@ import weakref
 from taurus import Attribute
 from taurus.external.qt import Qt
 from taurus.core import TaurusEventType
-from taurus.qt.qtgui.base import TaurusBaseWidget
 from taurus.qt.qtgui.container import TaurusWidget
 from taurus.qt.qtgui.display import TaurusLabel
 from taurus.qt.qtgui.button import TaurusCommandToolButton
@@ -43,32 +42,6 @@ from taurus.qt.qtgui.input import TaurusValueSpinBox
 from taurus.qt.qtgui.compact import TaurusReadWriteSwitcher
 from taurus.qt.qtgui.util.ui import UILoadable
 from taurus.qt.qtgui.resource import getIcon
-
-
-__height_hint = None
-def get_height_hint():
-    """Little trick to get a uniform height hint between all widgets"""
-    global __height_hint
-    if __height_hint is None:
-        h1 = Qt.QComboBox().sizeHint().height()
-        h2 = Qt.QLineEdit().sizeHint().height()
-        h3 = Qt.QDoubleSpinBox().sizeHint().height()
-        h4 = Qt.QPushButton().sizeHint().height()
-        __height_hint = min(h1, h2, h3, h4)
-    return __height_hint
-
-
-__minimum_height_hint = None
-def get_minimum_height_hint():
-    """Little trick to get a uniform height hint between all widgets"""
-    global __minimum_height_hint
-    if __minimum_height_hint is None:
-        h1 = Qt.QComboBox().minimumSizeHint().height()
-        h2 = Qt.QLineEdit().minimumSizeHint().height()
-        h3 = Qt.QDoubleSpinBox().minimumSizeHint().height()
-        h4 = Qt.QPushButton().minimumSizeHint().height()
-        __minimum_height_hint = min(h1, h2, h3, h4)
-    return __minimum_height_hint
 
 
 class RWWidget(TaurusReadWriteSwitcher):
@@ -98,7 +71,7 @@ class QStep(Qt.QObject):
         self.setStep(step)
 
     def setStep(self, step):
-        icon = getIcon(":/step.png")
+        icon = ":/step.png"
         if isinstance(step, (list, tuple)):
             lstep = len(step)
             if lstep == 0:
@@ -131,100 +104,6 @@ class QStep(Qt.QObject):
         return cmp(self.size, other.size)
     
 
-class StepSizeComboBox(Qt.QComboBox, TaurusBaseWidget):
-
-    def __init__(self, parent=None):
-        Qt.QComboBox.__init__(self, parent)
-        TaurusBaseWidget.__init__(self, self.__class__.__name__)
-        self.activated[int].connect(self.__onUserSelection)
-
-    def __onUserSelection(self, index):
-        step_size = self.itemData(index)
-        self.getModelObj().write(step_size)
-        
-    def __getUnit(self):
-        model = self.getModelObj()
-        if model is None:
-            return ""
-        unit = model.getUnit()
-        if "no unit" in unit.lower():
-            unit = ""
-        return unit
-
-    def __toLabel(self, step):
-        unit = self.__getUnit()
-        if unit:
-            return "{0} {1}".format(step, unit)
-        else:
-            return "{0}".format(step)
-    
-    def addStep(self, step):
-        icon = getIcon(":/step.png") #getIcon(":/actions/arrange-boxes.svg")
-        if isinstance(step, (list, tuple)):
-            lstep = len(step)
-            if lstep == 0:
-                raise ValueError("Invalid step value")
-            step_size = step[0]
-            if lstep == 1:
-                step_label = self.__toLabel(step_size)
-            else:
-                step_label = step[1]
-                if lstep > 2:
-                    icon = step[2]
-        elif isinstance(step, dict):
-            step_size = step['size']
-            step_label = step.get('label', str(step_size))
-            icon = step.get('icon', icon)
-        else:
-            step_size = step
-            step_label = str(step)
-        if not isinstance(icon, Qt.QIcon):
-            icon = getIcon(icon)        
-        self.addItem(icon, step_label, step_size)
-
-    def addSteps(self, steps):
-        for step in steps:
-            self.addStep(step)
-
-    def setSteps(self, steps):
-        self.clear()
-        if steps is None:
-            steps = []
-        self.addSteps(steps)
-
-    def setCurrentStep(self, step):
-        index = self.findData(step, Qt.Qt.UserRole)
-        self.setCurrentIndex(index)
-
-    def sizeHint(self):
-        size = Qt.QComboBox.sizeHint(self)
-        size = Qt.QSize(size.width(), get_height_hint())
-        return size
-
-    def minimumSizeHint(self):
-        size = Qt.QComboBox.minimumSizeHint(self)
-        size = Qt.QSize(size.width(), get_minimum_height_hint())
-        return size
-
-    def handleEvent(self, evt_src, evt_type, evt_value):
-        if evt_type == TaurusEventType.Error:
-            self.setCurrentIndex(-1)
-        elif evt_type == TaurusEventType.Config:
-            return
-        else:
-            step_size = evt_value.value
-            index = self.findData(step_size, Qt.Qt.UserRole)
-            if index == -1:
-                self.addStep(step_size)
-            self.setCurrentIndex(self.findData(step_size, Qt.Qt.UserRole))
-
-    def setModel(self, model):
-        if isinstance(model, Qt.QAbstractItemModel):
-            Qt.QComboBox.setModel(self, model)
-        else:
-            TaurusBaseWidget.setModel(self, model)
-
-    
 @UILoadable(with_ui='ui')
 class AxisWidget(TaurusWidget):
 
@@ -238,13 +117,14 @@ class AxisWidget(TaurusWidget):
         TaurusWidget.__init__(self, parent)
         self.loadUi()
         ui = self.ui
-        
+
+        # initialize read/write position widgets
         ui.positionLabel = TaurusLabel(designMode=designMode)
         ui.positionLabel.setAutoTooltip(False)
 
         ui.positionEdit = TaurusValueSpinBox(designMode=designMode)
         ui.positionEdit.setAutoTooltip(False)
-                
+        
         exitEditTriggers = list(TaurusReadWriteSwitcher.exitEditTriggers)
         exitEditTriggers.append('editingFinished()')
         ui.readWriteWidget = RWWidget(designMode=designMode)
@@ -252,6 +132,7 @@ class AxisWidget(TaurusWidget):
         ui.readWriteWidget.setWriteWidget(ui.positionEdit)
         ui.readWritePanel.layout().addWidget(ui.readWriteWidget)
 
+        # initialize step buttton panel with step up and step down buttons
         stepButtonPanelLayout = Qt.QBoxLayout(Qt.QBoxLayout.LeftToRight,
                                               ui.stepButtonPanel)
         stepButtonPanelLayout.setContentsMargins(0, 0, 0, 0)
@@ -277,7 +158,6 @@ class AxisWidget(TaurusWidget):
         self.setAutoTooltip(False)
 
         self.stepSizeChanged.connect(self.__handleStepSizeChanged)
-        #ui.stepSizeWidget.currentIndexChanged[int].connect(self.__onStepSizeChanged)
 
         # build steps menu
         ui.stepMenuToolButton.setIcon(getIcon(":/step.png"))
@@ -290,6 +170,8 @@ class AxisWidget(TaurusWidget):
         self.__updateStepButtonPanel()
         
     def __updateStepButtonPanel(self):
+        # update the step button panel according to the orientation
+        # (horizontal/vertical step down/up buttons)
         ui = self.ui
         layout = ui.stepButtonPanel.layout()
         orientation = self.__stepButtonOrientation
@@ -307,22 +189,22 @@ class AxisWidget(TaurusWidget):
             ui.stepUpButton.setIconSize(Qt.QSize(8, 8))            
         layout.setDirection(direction)
 
-    def __getSteps(self):
-        return [action.data() for action in self.ui.stepActionGroup.actions()]
-        
     def __addStep(self, qstep):
         if not isinstance(qstep, QStep):
             qstep = QStep(qstep, self)
+
+        # if step exists return the corresponding action
         for action in self.ui.stepActionGroup.actions():
             if action.data().size == qstep.size:
                 return action
 
+        # create a new action for the step and add it to the menu
         action = self.ui.stepActionGroup.addAction(qstep.label)
         action.setData(qstep)
         action.setCheckable(True)
         self.ui.stepMenu.addAction(action)
 
-        # re-order actions
+        # re-order actions is the step group
         actions = self.ui.stepActionGroup.actions()
         steps = {}
         for action in actions:
@@ -384,16 +266,14 @@ class AxisWidget(TaurusWidget):
         self.ui.axisLabel.setText(self.__getCustomLabel())
 
     def __updateReadOnly(self):
-        ui = self.ui
-        readOnly = ui.readWriteWidget.readOnly
-        ui.stepPanel.setVisible(not readOnly)
+        readOnly = self.ui.readWriteWidget.readOnly
+        self.ui.stepPanel.setVisible(not readOnly)
 
     def setModel(self, model_name):
         TaurusWidget.setModel(self, model_name)
-        ui = self.ui
-        ui.readWriteWidget.setModel(model_name + "/Position")
-        ui.stepDownButton.setModel(model_name)
-        ui.stepUpButton.setModel(model_name)
+        self.ui.readWriteWidget.setModel(model_name + "/Position")
+        self.ui.stepDownButton.setModel(model_name)
+        self.ui.stepUpButton.setModel(model_name)
 
         stepSize = Attribute(model_name + "/StepSize")
         stepSize.addListener(self.__onStepSizeChanged)
@@ -485,18 +365,19 @@ def main():
         axis.setModel(motor)
         layout.addWidget(axis)
 
-        # vertical step buttons, custom label, motor widget
+        # vertical step buttons, motor widget
         axis = AxisWidget()
         axis.setSteps(defaultSteps)
         axis.setModel(motor)
         axis.setStepButtonPanelOrientation(Qt.Qt.Vertical)
-        axis.setCustomLabel("= {0} =".format(motor))
         layout.addWidget(axis)
 
+        # read-only, custom label, motor widget
         axis = AxisWidget()
         axis.setSteps(defaultSteps)
         axis.setModel(motor)
         axis.setReadOnly(True)        
+        axis.setCustomLabel("= {0} =".format(motor))
         layout.addWidget(axis)        
 
     window.show()
