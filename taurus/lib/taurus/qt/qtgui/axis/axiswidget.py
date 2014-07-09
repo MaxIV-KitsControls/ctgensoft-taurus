@@ -365,6 +365,9 @@ def main():
         
     args = app.get_command_line_args()
 
+    if not len(args):
+        parser.error("Must give at least one axis")
+    
     window = Qt.QWidget()
     layout = Qt.QVBoxLayout(window)
     layout.setContentsMargins(3, 3, 3, 3)
