@@ -257,7 +257,10 @@ class AxisWidget(TaurusWidget):
         label = self.__getModelLabel()
         readOnly = self.getReadOnly()
         action = self.ui.stepActionGroup.checkedAction()
-        stepLabel = Qt.from_qvariant(action.data()).label
+        if action is None:
+            stepLabel = "?"
+        else:
+            stepLabel = Qt.from_qvariant(action.data()).label
         toolTip = "Move {0} down by {1}".format(label, stepLabel)
         ui.stepDownButton.setToolTip(toolTip)
         toolTip = "Move {0} up by {1}".format(label, stepLabel)
