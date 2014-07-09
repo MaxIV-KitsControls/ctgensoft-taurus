@@ -272,6 +272,7 @@ class AxisWidget(TaurusWidget):
             toolTip += " (double click to set new position)"
         ui.readWritePanel.setToolTip(toolTip)
 
+    @Qt.Slot(str)
     def setModel(self, model_name):
         TaurusWidget.setModel(self, model_name)
         self.ui.readWriteWidget.setModel(model_name + "/Position")
@@ -289,6 +290,7 @@ class AxisWidget(TaurusWidget):
             return ""
         return self.__customLabel
 
+    @Qt.Slot(str)
     def setCustomLabel(self, label):
         self.__customLabel = label
         self.ui.axisLabel.setText(self.__getAxisLabel())
@@ -303,6 +305,7 @@ class AxisWidget(TaurusWidget):
     def getReadOnly(self):
         return self.ui.readWriteWidget.readOnly
 
+    @Qt.Slot(bool)
     def setReadOnly(self, readOnly):
         self.ui.readWriteWidget.readOnly = readOnly
         self.ui.stepPanel.setVisible(not readOnly)
@@ -320,6 +323,7 @@ class AxisWidget(TaurusWidget):
             result.append(str(qstep))
         return result
 
+    @Qt.Slot("QStringList")
     def setSteps(self, steps):
         for step in steps:
             if isinstance(step, Qt.QString): # happens in the QtDesigner
