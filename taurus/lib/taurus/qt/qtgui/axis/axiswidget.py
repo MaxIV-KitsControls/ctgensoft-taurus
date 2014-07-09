@@ -30,7 +30,7 @@ axis based elements (motors)
 
 __docformat__ = 'restructuredtext'
 
-import weakref
+import json
 
 from taurus import Attribute
 from taurus.external.qt import Qt
@@ -67,42 +67,35 @@ class QStep(Qt.QObject):
         Qt.QObject.__init__(self, parent)
         self.size = None
         self.label = None
-        self.icon = None
         self.setStep(step)
 
     def setStep(self, step):
-        icon = ":/step.png"
         if isinstance(step, (list, tuple)):
             lstep = len(step)
             if lstep == 0:
                 raise ValueError("Invalid step value")
-            step_size = step[0]
+            size = step[0]
             if lstep == 1:
-                step_label = self.__toLabel(step_size)
+                label = str(size)
             else:
-                step_label = step[1]
-                if lstep > 2:
-                    icon = step[2]
+                label = step[1]
         elif isinstance(step, dict):
-            step_size = step['size']
-            step_label = step.get('label', str(step_size))
-            icon = step.get('icon', icon)
+            size = step['size']
+            label = step.get('label', str(size))
         else:
-            step_size = step
-            step_label = str(step)
-        if not isinstance(icon, Qt.QIcon):
-            if not icon:
-                icon = Qt.QIcon()
-            else:
-                icon = getIcon(icon)
-                    
-        self.size = step_size
-        self.label = step_label
-        self.icon = icon
+            size = step
+            label = str(step)
+
+        self.size = size
+        self.label = label
 
     def __cmp__(self, other):
         return cmp(self.size, other.size)
-    
+
+    def __str__(self):
+        obj = dict(label=unicode(self.label), size=self.size)
+        return json.dumps(obj)
+
 
 @UILoadable(with_ui='ui')
 class AxisWidget(TaurusWidget):
@@ -184,9 +177,9 @@ class AxisWidget(TaurusWidget):
         else:
             direction = Qt.QBoxLayout.BottomToTop
             ui.stepDownButton.setArrowType(Qt.Qt.DownArrow)
-            ui.stepDownButton.setIconSize(Qt.QSize(8, 8))            
+            ui.stepDownButton.setIconSize(Qt.QSize(8, 6))            
             ui.stepUpButton.setArrowType(Qt.Qt.UpArrow)
-            ui.stepUpButton.setIconSize(Qt.QSize(8, 8))            
+            ui.stepUpButton.setIconSize(Qt.QSize(8, 6))            
         layout.setDirection(direction)
 
     def __addStep(self, qstep):
@@ -195,7 +188,8 @@ class AxisWidget(TaurusWidget):
 
         # if step exists return the corresponding action
         for action in self.ui.stepActionGroup.actions():
-            if action.data().size == qstep.size:
+            step = Qt.from_qvariant(action.data())
+            if step.size == qstep.size:
                 return action
 
         # create a new action for the step and add it to the menu
@@ -208,7 +202,8 @@ class AxisWidget(TaurusWidget):
         actions = self.ui.stepActionGroup.actions()
         steps = {}
         for action in actions:
-            steps[action.data()] = action
+            step = Qt.from_qvariant(action.data())
+            steps[step] = action
             self.ui.stepActionGroup.removeAction(action)
         for step in sorted(steps):
             action = steps[step]
@@ -217,7 +212,8 @@ class AxisWidget(TaurusWidget):
         return action
             
     def __onStepSizeChangedByUI(self, action):
-        self.getModelObj().getAttribute("StepSize").write(action.data().size)
+        qstep = Qt.from_qvariant(action.data())
+        self.getModelObj().getAttribute("StepSize").write(qstep.size)
         
     def __onStepSizeChanged(self, evt_src, evt_type, evt_value):
         if evt_type in (TaurusEventType.Error, TaurusEventType.Config):
@@ -232,17 +228,11 @@ class AxisWidget(TaurusWidget):
 
     def __handleStepSizeChanged(self, step_size, step_label):
         action = self.__addStep((step_size, step_label))
-        step = action.data()
+        step = Qt.from_qvariant(action.data())
         action.setChecked(True)
         ui = self.ui
         ui.positionEdit.setSingleStep(step.size)
-        slabel, mlabel = step.label, self.__getModelLabel()
-        toolTip = "Move {0} down by {1}".format(mlabel, slabel)
-        ui.stepDownButton.setToolTip(toolTip)
-        toolTip = "Move {0} up by {1}".format(mlabel, slabel)        
-        ui.stepUpButton.setToolTip(toolTip)
-        toolTip = "Step size selection (current value: {0})".format(slabel)
-        ui.stepMenuToolButton.setToolTip(toolTip)
+        self.__updateToolTips()
         
     def __getModelLabel(self):
         model = self.getModelObj()
@@ -252,7 +242,7 @@ class AxisWidget(TaurusWidget):
             modelLabel = model.getSimpleName()
         return modelLabel
         
-    def __getCustomLabel(self):        
+    def __getAxisLabel(self):        
         customLabel = self.__customLabel
         if customLabel is None:
             model = self.getModelObj()
@@ -262,12 +252,22 @@ class AxisWidget(TaurusWidget):
                 customLabel = model.getSimpleName() + ":"
         return customLabel
 
-    def __updateCustomLabel(self):
-        self.ui.axisLabel.setText(self.__getCustomLabel())
-
-    def __updateReadOnly(self):
-        readOnly = self.ui.readWriteWidget.readOnly
-        self.ui.stepPanel.setVisible(not readOnly)
+    def __updateToolTips(self):
+        ui = self.ui
+        label = self.__getModelLabel()
+        readOnly = self.getReadOnly()
+        action = self.ui.stepActionGroup.checkedAction()
+        stepLabel = Qt.from_qvariant(action.data()).label
+        toolTip = "Move {0} down by {1}".format(label, stepLabel)
+        ui.stepDownButton.setToolTip(toolTip)
+        toolTip = "Move {0} up by {1}".format(label, stepLabel)
+        ui.stepUpButton.setToolTip(toolTip)
+        toolTip = "Step size selection (current value: {0})".format(stepLabel)
+        ui.stepMenuToolButton.setToolTip(toolTip)
+        toolTip = "{0} current position".format(label)
+        if not readOnly:
+            toolTip += " (double click to set new position)"
+        ui.readWritePanel.setToolTip(toolTip)
 
     def setModel(self, model_name):
         TaurusWidget.setModel(self, model_name)
@@ -277,8 +277,9 @@ class AxisWidget(TaurusWidget):
 
         stepSize = Attribute(model_name + "/StepSize")
         stepSize.addListener(self.__onStepSizeChanged)
-        
-        self.__updateCustomLabel()
+
+        self.ui.axisLabel.setText(self.__getAxisLabel())
+        self.__updateToolTips()
         
     def getCustomLabel(self):
         if self.__customLabel is None:
@@ -287,8 +288,9 @@ class AxisWidget(TaurusWidget):
 
     def setCustomLabel(self, label):
         self.__customLabel = label
-        self.__updateCustomLabel()
-
+        self.ui.axisLabel.setText(self.__getAxisLabel())
+        self.__updateToolTips()
+        
     def resetCustomLabel(self):
         self.setCustomLabel(None)
 
@@ -300,7 +302,8 @@ class AxisWidget(TaurusWidget):
 
     def setReadOnly(self, readOnly):
         self.ui.readWriteWidget.readOnly = readOnly
-        self.__updateReadOnly()
+        self.ui.stepPanel.setVisible(not readOnly)
+        self.__updateToolTips()
 
     def resetReadOnly(self):
         self.setReadOnly(self.ui.readWriteWidget._DefaultReadOnly)
@@ -308,13 +311,23 @@ class AxisWidget(TaurusWidget):
     readOnly = Qt.Property(bool, getReadOnly, setReadOnly, resetReadOnly)
 
     def getSteps(self):
-        return [action.data() for action in self.ui.stepActionGroup.actions()]
+        result = []
+        for action in self.ui.stepActionGroup.actions():
+            qstep = Qt.from_qvariant(action.data())
+            result.append(str(qstep))
+        return result
 
     def setSteps(self, steps):
         for step in steps:
+            if isinstance(step, Qt.QString): # happens in the QtDesigner
+                step = unicode(step)
+            try:
+                step = json.loads(step)
+            except TypeError:
+                pass
             self.__addStep(step)
             
-    steps = Qt.Property(list, getSteps, setSteps, designable=False)
+    steps = Qt.Property("QStringList", getSteps, setSteps)
 
     def getStepButtonPanelOrientation(self):
         return self.__stepButtonOrientation
