@@ -165,6 +165,8 @@ class TaurusBaseCommandWidget(TaurusBaseWidget):
         
         :return: (str or None) the timeout name
         """
+        if self.__timeout is None:
+            return 0.0
         return self.__timeout
     
     def resetTimeout(self):
