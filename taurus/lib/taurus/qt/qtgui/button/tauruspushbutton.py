@@ -72,11 +72,6 @@ class TaurusCommandPushButton(Qt.QPushButton, TaurusBaseCommandWidget):
         TaurusBaseCommandWidget.__init__(self, designMode=designMode)
         self.clicked.connect(self.executeCommand)
         
-    @classmethod
-    def getQtDesignerPluginInfo(cls):
-        info = TaurusBaseCommandWidget.getQtDesignerPluginInfo()
-        info["icon"] = ":/designer/toolbutton.png"
-        return info
         
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     #                      Qt Properties                        #

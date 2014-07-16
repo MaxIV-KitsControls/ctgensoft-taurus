@@ -123,6 +123,8 @@ class TaurusBaseCommandWidget(TaurusBaseWidget):
         
         :return: (str or None) the command name
         """
+        if self.__command is None:
+            return ""
         return self.__command
     
     def resetCommand(self):
@@ -145,6 +147,8 @@ class TaurusBaseCommandWidget(TaurusBaseWidget):
         
         :return: (str or None) the customText name
         """
+        if self.__customText is None:
+            return ""
         return self.__customText
     
     def resetCustomText(self):
