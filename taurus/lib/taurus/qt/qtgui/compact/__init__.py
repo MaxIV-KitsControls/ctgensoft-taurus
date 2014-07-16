@@ -6,7 +6,7 @@
 ## 
 ## http://www.tango-controls.org/static/taurus/latest/doc/html/index.html
 ##
-## Copyright 2011 CELLS / ALBA Synchrotron, Bellaterra, Spain
+## Copyright 2013 CELLS / ALBA Synchrotron, Bellaterra, Spain
 ## 
 ## Taurus is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU Lesser General Public License as published by
@@ -23,13 +23,10 @@
 ##
 #############################################################################
 
-import sys
-import os.path
-import optparse 
+"""This package contains a collection of taurus Qt widgets that combine other widgets
+to provide several functionalities in a reduced space"""
 
-import taurus
-from taurus.external.qt import Qt
-from taurus.qt.qtdesigner.taurusdesigner import main
+__docformat__ = 'restructuredtext'
 
-if __name__ == "__main__":
-    main()
+from .abstractswitcher import *
+from .basicswitcher import *

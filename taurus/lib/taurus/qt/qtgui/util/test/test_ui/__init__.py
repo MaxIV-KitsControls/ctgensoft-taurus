@@ -23,13 +23,7 @@
 ##
 #############################################################################
 
-import sys
-import os.path
-import optparse 
+"""This package provides a set of taurus wiget utilities like color management, 
+configuration, actions."""
 
-import taurus
-from taurus.external.qt import Qt
-from taurus.qt.qtdesigner.taurusdesigner import main
-
-if __name__ == "__main__":
-    main()
+from .test_ui import *
