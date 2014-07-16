@@ -109,6 +109,10 @@ class TaurusCommandToolButton(Qt.QToolButton, TaurusBaseCommandWidget):
     autoToolTip = Qt.Property(bool, TaurusBaseCommandWidget.getAutoTooltip,
                               TaurusBaseCommandWidget.setAutoTooltip)
 
+    customText = Qt.Property(str, TaurusBaseCommandWidget.getCustomText,
+                             TaurusBaseCommandWidget.setCustomText,
+                             TaurusBaseCommandWidget.resetCustomText)
+
 
 def main():
     import sys

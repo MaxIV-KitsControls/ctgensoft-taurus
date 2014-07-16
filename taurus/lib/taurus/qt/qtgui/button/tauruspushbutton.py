@@ -31,7 +31,8 @@ __docformat__ = 'restructuredtext'
 
 from taurus.external.qt import Qt
 from taurus.qt.qtgui.button.taurusbasebutton import TaurusBaseCommandWidget            
-    
+
+
 class TaurusCommandPushButton(Qt.QPushButton, TaurusBaseCommandWidget):
     """
     This class provides a tool button that executes a tango command on its device.
@@ -103,6 +104,10 @@ class TaurusCommandPushButton(Qt.QPushButton, TaurusBaseCommandWidget):
 
     autoToolTip = Qt.Property(bool, TaurusBaseCommandWidget.getAutoTooltip,
                               TaurusBaseCommandWidget.setAutoTooltip)
+
+    customText = Qt.Property(str, TaurusBaseCommandWidget.getCustomText,
+                             TaurusBaseCommandWidget.setCustomText,
+                             TaurusBaseCommandWidget.resetCustomText)
 
 
 def main():
