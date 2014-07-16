@@ -41,7 +41,7 @@ from taurus.qt.qtgui.button import TaurusCommandToolButton
 from taurus.qt.qtgui.input import TaurusValueSpinBox
 from taurus.qt.qtgui.compact import TaurusReadWriteSwitcher
 from taurus.qt.qtgui.util.ui import UILoadable
-from taurus.qt.qtgui.resource import getIcon
+from taurus.qt.qtgui.resource import getIcon, getThemeIcon
 
 
 class RWWidget(TaurusReadWriteSwitcher):
@@ -54,52 +54,95 @@ class RWWidget(TaurusReadWriteSwitcher):
     def __init__(self, *args, **kwargs):
         self.readOnly = self._DefaultReadOnly
         TaurusReadWriteSwitcher.__init__(self, *args, **kwargs)
+        layout = self.layout()
+        layout.setContentsMargins(0, 0, 0, 0)
 
     def enterEdit(self, *args, **kwargs):
         if self.readOnly:
             return
         return TaurusReadWriteSwitcher.enterEdit(self, *args, **kwargs)
 
+    def _updateSizePolicy(self):
+        pass
 
-class QStep(Qt.QObject):
+class PositionSpinBox(TaurusValueSpinBox):
+    pass
 
-    def __init__(self, step, parent=None):
-        Qt.QObject.__init__(self, parent)
-        self.size = None
+
+class PositionLabel(TaurusLabel):
+
+    def handleEvent(self, evt_src, evt_type, evt_value):
+        TaurusLabel.handleEvent(self, evt_src, evt_type, evt_value)
+        if evt_type == TaurusEventType.Config:
+            units = self.getModelObj().getUnit()
+            if units not in (None, "No unit"):
+                self.setSuffixText(" " + units)
+    
+    
+class ValueLabel(object):
+    """
+    An object representing a pair value and it's label (display representation).
+    Can be used, for example to describe a position value=0.01, label="10 um".
+    """
+    def __init__(self, value):
+        self.value = None
         self.label = None
-        self.setStep(step)
+        self.setValue(value)
 
-    def setStep(self, step):
-        if isinstance(step, (list, tuple)):
-            lstep = len(step)
-            if lstep == 0:
-                raise ValueError("Invalid step value")
-            size = step[0]
-            if lstep == 1:
-                label = str(size)
+    def setValue(self, in_value):
+        if isinstance(in_value, (list, tuple)):
+            lin_value = len(in_value)
+            if lin_value == 0:
+                raise ValueError("Invalid value")
+            value = in_value[0]
+            if lin_value == 1:
+                label = str(value)
             else:
-                label = step[1]
-        elif isinstance(step, dict):
-            size = step['size']
-            label = step.get('label', str(size))
+                label = in_value[1]
+        elif isinstance(in_value, dict):
+            value = in_value['value']
+            label = in_value.get('label', str(value))
         else:
-            size = step
-            label = str(step)
+            value = in_value
+            label = str(in_value)
 
-        self.size = size
+        self.value = value
         self.label = label
 
     def __cmp__(self, other):
-        return cmp(self.size, other.size)
+        return cmp(self.value, other.value)
 
     def __str__(self):
-        obj = dict(label=unicode(self.label), size=self.size)
+        obj = dict(label=unicode(self.label), value=self.value)
         return json.dumps(obj)
 
 
+class Step(ValueLabel):
+
+    def setStep(self, step):
+        return self.setValue(step)
+
+    @property
+    def size(self):
+        return self.value
+
+
+class ReferencePoint(ValueLabel):
+
+    def setReferencePoint(self, refpos):
+        return self.setValue(refpos)
+
+    @property
+    def position(self):
+        return self.value
+    
+    
 @UILoadable(with_ui='ui')
 class AxisWidget(TaurusWidget):
-
+    """
+    
+    """
+    
     _DefaultStepButtonOrientation = Qt.Qt.Horizontal
 
     stepSizeChanged = Qt.Signal(float, str)
@@ -111,11 +154,13 @@ class AxisWidget(TaurusWidget):
         self.loadUi()
         ui = self.ui
 
-        # initialize read/write position widgets
-        ui.positionLabel = TaurusLabel(designMode=designMode)
-        ui.positionLabel.setAutoTooltip(False)
+        self.setAutoTooltip(False)
 
-        ui.positionEdit = TaurusValueSpinBox(designMode=designMode)
+        # initialize read/write position widgets
+        ui.positionLabel = PositionLabel(designMode=designMode)
+        ui.positionLabel.setAutoTooltip(False)
+        
+        ui.positionEdit = PositionSpinBox(designMode=designMode)
         ui.positionEdit.setAutoTooltip(False)
         
         exitEditTriggers = list(TaurusReadWriteSwitcher.exitEditTriggers)
@@ -124,7 +169,9 @@ class AxisWidget(TaurusWidget):
         ui.readWriteWidget.setReadWidget(ui.positionLabel)
         ui.readWriteWidget.setWriteWidget(ui.positionEdit)
         ui.readWritePanel.layout().addWidget(ui.readWriteWidget)
-
+        h = ui.stopToolButton.height()
+        ui.readWriteWidget.setMinimumHeight(h)
+        
         # initialize step buttton panel with step up and step down buttons
         stepButtonPanelLayout = Qt.QBoxLayout(Qt.QBoxLayout.LeftToRight,
                                               ui.stepButtonPanel)
@@ -132,36 +179,80 @@ class AxisWidget(TaurusWidget):
         stepButtonPanelLayout.setSpacing(0)
         ui.stepDownButton = TaurusCommandToolButton()
         ui.stepDownButton.setAutoTooltip(False)
-        ui.stepDownButton.setAutoRaise(True)
+        #ui.stepDownButton.setAutoRaise(True)
         ui.stepDownButton.setObjectName("StepDownButton")
         ui.stepDownButton.setCommand("StepDown")
-        policy = ui.stepDownButton.sizePolicy()
-        policy.setVerticalPolicy(Qt.QSizePolicy.Minimum)
-        ui.stepDownButton.setSizePolicy(policy)
+        #policy = ui.stepDownButton.sizePolicy()
+        #policy.setVerticalPolicy(Qt.QSizePolicy.Minimum)
+        #ui.stepDownButton.setSizePolicy(policy)
         ui.stepUpButton = TaurusCommandToolButton()
         ui.stepUpButton.setAutoTooltip(False)        
-        ui.stepUpButton.setAutoRaise(True)
+        #ui.stepUpButton.setAutoRaise(True)
         ui.stepUpButton.setObjectName("StepUpButton")        
         ui.stepUpButton.setCommand("StepUp")
-        policy = ui.stepUpButton.sizePolicy()
-        policy.setVerticalPolicy(Qt.QSizePolicy.Minimum)
-        ui.stepUpButton.setSizePolicy(policy)        
+        #policy = ui.stepUpButton.sizePolicy()
+        #policy.setVerticalPolicy(Qt.QSizePolicy.Minimum)
+        #ui.stepUpButton.setSizePolicy(policy)        
         stepButtonPanelLayout.addWidget(ui.stepDownButton)
-        stepButtonPanelLayout.addWidget(ui.stepUpButton)        
-        self.setAutoTooltip(False)
+        stepButtonPanelLayout.addWidget(ui.stepUpButton)
+        self.__updateStepButtonPanel()
 
         self.stepSizeChanged.connect(self.__handleStepSizeChanged)
 
         # build steps menu
-        ui.stepMenuToolButton.setIcon(getIcon(":/step.png"))
         ui.stepMenu = Qt.QMenu()
+        ui.stepMenuToolButton.setIcon(getIcon(":/step.png"))
         ui.stepMenuToolButton.setMenu(ui.stepMenu)
-        ui.stepActionGroup = Qt.QActionGroup(ui.stepMenu)
+        ui.stepActionGroup = Qt.QActionGroup(self)
         ui.stepActionGroup.setExclusive(True)
         ui.stepActionGroup.triggered.connect(self.__onStepSizeChangedByUI)
+
+        # build reference position menu
+        ui.refPointsMenu = Qt.QMenu()
+        ui.refPointsMenuToolButton.setIcon(getIcon(":/status/flag-green.svg"))
+        ui.refPointsMenuToolButton.setMenu(ui.refPointsMenu)
+        ui.refPointsActionGroup = Qt.QActionGroup(self)
+        ui.refPointsActionGroup.setExclusive(True)
+        ui.refPointsActionGroup.triggered.connect(self.__onRefPosChangedByUI)
+
+        # build menu
+        ui.menu = Qt.QMenu()
+        ui.menuToolButton.setIcon(getIcon("preferences-system"))
+        ui.menuToolButton.setMenu(ui.menu)
+
+        ui.stepSubMenu = Qt.QMenu("Change step size")
+        ui.stepSubMenu.setIcon(getIcon(":/step.png"))
+        ui.menu.addMenu(ui.stepSubMenu)
+
+        ui.refPointsSubMenu = Qt.QMenu("Go to")
+        ui.refPointsSubMenu.setIcon(getIcon(":/status/flag-green.svg"))
+        ui.menu.addMenu(ui.refPointsSubMenu)
+
+        ui.menu.addSeparator()
+        ui.expertPanelAction = Qt.QAction("Expert panel...", self)
+        ui.expertPanelAction.setToolTip("Open an expert axis dialog")
+        ui.expertPanelAction.setStatusTip("Open an expert axis dialog")        
+        ui.menu.addAction(ui.expertPanelAction)
+        ui.expertPanelAction.triggered.connect(self.__onExpertPanelTriggered)
         
-        self.__updateStepButtonPanel()
-        
+        # Stop button
+        ui.stopToolButton.setIcon(getThemeIcon("process-stop"))
+
+    def __onExpertPanelTriggered(self, checked=False):
+        dialog = Qt.QDialog(self)
+        name = self.getModelName()
+        dialog.setWindowTitle(name)
+        layout = Qt.QVBoxLayout(dialog)
+
+        from taurus.qt.qtgui.panel import TaurusDevicePanel
+        panel = TaurusDevicePanel()
+        panel.setModel(name)
+        layout.addWidget(panel)
+
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+    
     def __updateStepButtonPanel(self):
         # update the step button panel according to the orientation
         # (horizontal/vertical step down/up buttons)
@@ -171,20 +262,20 @@ class AxisWidget(TaurusWidget):
         if orientation == Qt.Qt.Horizontal:
             direction = Qt.QBoxLayout.LeftToRight
             ui.stepDownButton.setArrowType(Qt.Qt.LeftArrow)
-            ui.stepDownButton.setIconSize(Qt.QSize(16, 16))
+            ui.stepDownButton.setIconSize(Qt.QSize(24, 24))
             ui.stepUpButton.setArrowType(Qt.Qt.RightArrow)
-            ui.stepUpButton.setIconSize(Qt.QSize(16, 16))
+            ui.stepUpButton.setIconSize(Qt.QSize(24, 24))
         else:
             direction = Qt.QBoxLayout.BottomToTop
             ui.stepDownButton.setArrowType(Qt.Qt.DownArrow)
-            ui.stepDownButton.setIconSize(Qt.QSize(8, 6))            
+            ui.stepDownButton.setIconSize(Qt.QSize(8, 8))            
             ui.stepUpButton.setArrowType(Qt.Qt.UpArrow)
-            ui.stepUpButton.setIconSize(Qt.QSize(8, 6))            
+            ui.stepUpButton.setIconSize(Qt.QSize(8, 8))            
         layout.setDirection(direction)
 
     def __addStep(self, qstep):
-        if not isinstance(qstep, QStep):
-            qstep = QStep(qstep, self)
+        if not isinstance(qstep, Step):
+            qstep = Step(qstep)
 
         # if step exists return the corresponding action
         for action in self.ui.stepActionGroup.actions():
@@ -197,6 +288,7 @@ class AxisWidget(TaurusWidget):
         action.setData(qstep)
         action.setCheckable(True)
         self.ui.stepMenu.addAction(action)
+        self.ui.stepSubMenu.addAction(action)
 
         # re-order actions is the step group
         actions = self.ui.stepActionGroup.actions()
@@ -210,7 +302,41 @@ class AxisWidget(TaurusWidget):
             self.ui.stepActionGroup.addAction(action)
         
         return action
-            
+
+    def __addReferencePoint(self, point):
+        if not isinstance(point, ReferencePoint):
+            point = ReferencePoint(point)
+
+        # if reference position exists return the corresponding action
+        for action in self.ui.refPointsActionGroup.actions():
+            pt = Qt.from_qvariant(action.data())
+            if pt.position == point.position:
+                return action
+
+        # create a new action for the reference position and add it to the menu
+        action = self.ui.refPointsActionGroup.addAction(point.label)
+        action.setData(point)
+        #action.setCheckable(True)
+        self.ui.refPointsMenu.addAction(action)
+        self.ui.refPointsSubMenu.addAction(action)
+        
+        # re-order actions is the step group
+        actions = self.ui.refPointsActionGroup.actions()
+        points = {}
+        for action in actions:
+            point = Qt.from_qvariant(action.data())
+            points[point] = action
+            self.ui.refPointsActionGroup.removeAction(action)
+        for point in sorted(points):
+            action = points[point]
+            self.ui.refPointsActionGroup.addAction(action)
+        
+        return action        
+    
+    def __onRefPosChangedByUI(self, action):
+        point = Qt.from_qvariant(action.data())
+        self.getModelObj().getAttribute("Position").write(point.position)
+        
     def __onStepSizeChangedByUI(self, action):
         qstep = Qt.from_qvariant(action.data())
         self.getModelObj().getAttribute("StepSize").write(qstep.size)
@@ -230,10 +356,10 @@ class AxisWidget(TaurusWidget):
         action = self.__addStep((step_size, step_label))
         step = Qt.from_qvariant(action.data())
         action.setChecked(True)
-        ui = self.ui
-        ui.positionEdit.setSingleStep(step.size)
+        self.ui.stepMenuToolButton.setText(step.label)
+        self.ui.positionEdit.setSingleStep(step.size)
         self.__updateToolTips()
-        
+
     def __getModelLabel(self):
         model = self.getModelObj()
         if model is None:
@@ -255,7 +381,7 @@ class AxisWidget(TaurusWidget):
     def __updateToolTips(self):
         ui = self.ui
         label = self.__getModelLabel()
-        readOnly = self.getReadOnly()
+        readOnly = self.isReadOnly()
         action = self.ui.stepActionGroup.checkedAction()
         if action is None:
             stepLabel = "?"
@@ -272,13 +398,17 @@ class AxisWidget(TaurusWidget):
             toolTip += " (double click to set new position)"
         ui.readWritePanel.setToolTip(toolTip)
 
+    # -~-~-~-~-~-~-~
+    # Qt Properties
+    # -~-~-~-~-~-~-~
+            
     @Qt.Slot(str)
     def setModel(self, model_name):
         TaurusWidget.setModel(self, model_name)
         self.ui.readWriteWidget.setModel(model_name + "/Position")
         self.ui.stepDownButton.setModel(model_name)
         self.ui.stepUpButton.setModel(model_name)
-
+        self.ui.stopToolButton.setModel(model_name)
         stepSize = Attribute(model_name + "/StepSize")
         stepSize.addListener(self.__onStepSizeChanged)
 
@@ -302,19 +432,19 @@ class AxisWidget(TaurusWidget):
     customLabel = Qt.Property(str, getCustomLabel, setCustomLabel,
                               resetCustomLabel)
 
-    def getReadOnly(self):
+    def isReadOnly(self):
         return self.ui.readWriteWidget.readOnly
 
     @Qt.Slot(bool)
     def setReadOnly(self, readOnly):
         self.ui.readWriteWidget.readOnly = readOnly
-        self.ui.stepPanel.setVisible(not readOnly)
+        self.ui.stepButtonPanel.setEnabled(not readOnly)
         self.__updateToolTips()
 
     def resetReadOnly(self):
         self.setReadOnly(self.ui.readWriteWidget._DefaultReadOnly)
 
-    readOnly = Qt.Property(bool, getReadOnly, setReadOnly, resetReadOnly)
+    readOnly = Qt.Property(bool, isReadOnly, setReadOnly, resetReadOnly)
 
     def getSteps(self):
         result = []
@@ -336,6 +466,28 @@ class AxisWidget(TaurusWidget):
             
     steps = Qt.Property("QStringList", getSteps, setSteps)
 
+    def getReferencePoints(self):
+        result = []
+        for action in self.ui.refPointsActionGroup.actions():
+            
+            qstep = Qt.from_qvariant(action.data())
+            result.append(str(qstep))
+        return result
+
+    @Qt.Slot("QStringList")
+    def setReferencePoints(self, ref_points):
+        for ref_point in ref_points:
+            if isinstance(ref_point, Qt.QString): # happens in the QtDesigner
+                ref_point = unicode(ref_point)
+            try:
+                ref_point = json.loads(ref_point)
+            except TypeError:
+                pass
+            self.__addReferencePoint(ref_point)
+            
+    referencePoints = Qt.Property("QStringList", getReferencePoints,
+                                  setReferencePoints)
+
     def getStepButtonPanelOrientation(self):
         return self.__stepButtonOrientation
 
@@ -350,6 +502,90 @@ class AxisWidget(TaurusWidget):
                                              getStepButtonPanelOrientation,
                                              setStepButtonPanelOrientation,
                                              resetStepButtonPanelOrientation)
+
+    def isLabelVisible(self):
+        return self.ui.labelPanel.isVisible()
+
+    @Qt.Slot(bool)
+    def setLabelVisible(self, visible):
+        self.ui.labelPanel.setVisible(visible)
+
+    def resetLabelVisible(self):
+        self.setLabelVisible(True)
+        
+    labelVisible = Qt.Property(bool, isLabelVisible, setLabelVisible,
+                               resetLabelVisible)
+    
+    def isStepButtonsVisible(self):
+        return self.ui.stepButtonPanel.isVisible()
+
+    @Qt.Slot(bool)
+    def setStepButtonsVisible(self, visible):
+        self.ui.stepButtonPanel.setVisible(visible)
+
+    def resetStepButtonsVisible(self):
+        self.setStepButtonsVisible(True)
+        
+    stepButtonsVisible = Qt.Property(bool, isStepButtonsVisible,
+                                     setStepButtonsVisible,
+                                     resetStepButtonsVisible)
+
+    def isStepMenuVisible(self):
+        return self.ui.stepMenuToolButton.isVisible()
+
+    @Qt.Slot(bool)
+    def setStepMenuVisible(self, visible):
+        self.ui.stepMenuToolButton.setVisible(visible)
+
+    def resetStepMenuVisible(self):
+        self.setStepMenuVisible(True)
+        
+    stepMenuVisible = Qt.Property(bool, isStepMenuVisible,
+                                  setStepMenuVisible,
+                                  resetStepMenuVisible)
+
+    def isReferencePointsMenuVisible(self):
+        return self.ui.refPointsMenuToolButton.isVisible()
+
+    @Qt.Slot(bool)
+    def setReferencePointsMenuVisible(self, visible):
+        self.ui.refPointsMenuToolButton.setVisible(visible)
+
+    def resetReferencePointsMenuVisible(self):
+        self.setReferencePointsMenuVisible(True)
+        
+    referencePointsMenuVisible = Qt.Property(bool, isReferencePointsMenuVisible,
+                                             setReferencePointsMenuVisible,
+                                             resetReferencePointsMenuVisible)
+
+    def isOperationMenuVisible(self):
+        return self.ui.menuToolButton.isVisible()
+
+    @Qt.Slot(bool)
+    def setOperationMenuVisible(self, visible):
+        self.ui.menuToolButton.setVisible(visible)
+
+    def resetOperationMenuVisible(self):
+        self.setOperationMenuVisible(True)
+        
+    operationMenuVisible = Qt.Property(bool, isOperationMenuVisible,
+                                       setOperationMenuVisible,
+                                       resetOperationMenuVisible)
+    
+    def isStopButtonVisible(self):
+        return self.ui.stopToolButton.isVisible()
+
+    @Qt.Slot(bool)
+    def setStopButtonVisible(self, visible):
+        self.ui.stopToolButton.setVisible(visible)
+
+    def resetStopButtonVisible(self):
+        self.setStopButtonVisible(True)
+        
+    stopButtonVisible = Qt.Property(bool, isStopButtonVisible,
+                                    setStopButtonVisible,
+                                    resetStopButtonVisible)    
+    
     
     @classmethod
     def getQtDesignerPluginInfo(cls):
@@ -381,27 +617,55 @@ def main():
     layout.setSpacing(2)
     defaultSteps = [(0.01, "10 um"), (0.1, "100 um"), (1.0, "1 mm"),
                     (10.0, "10 mm"), (100.0, "100 mm")]
+    defaultSteps = 0.01, 0.1, 1.0, 10.0, 100.0
+    defaultReferencePoints = [(i, "{0} mm".format(i)) for i in (1,2,4,5,10,25)]
+
+    inOutReferencePoints = [
+        (10.45, "Out (10.45 mm)"),
+        (2.55, "In (2.55 mm)"),
+        (20, "Maintenance (20.00 mm)")
+    ]
+    
     for motor in args:
+        axisPanel = Qt.QGroupBox(motor)
+        layout.addWidget(axisPanel)
+
+        axisLayout = Qt.QVBoxLayout(axisPanel)
+        axisLayout.setSpacing(2)
+        axisLayout.setContentsMargins(2, 2, 2, 2)
+
         # "default" motor widget
         axis = AxisWidget()
         axis.setSteps(defaultSteps)
+        axis.setReferencePoints(defaultReferencePoints)
         axis.setModel(motor)
-        layout.addWidget(axis)
+        axis.ui.stepDownButton.setIcon(getThemeIcon("edit-undo"))
+        axis.ui.stepDownButton.setArrowType(Qt.Qt.NoArrow)
+        axis.ui.stepUpButton.setIcon(getThemeIcon("edit-redo"))
+        axis.ui.stepUpButton.setArrowType(Qt.Qt.NoArrow)
+        axisLayout.addWidget(axis)
 
         # vertical step buttons, motor widget
         axis = AxisWidget()
         axis.setSteps(defaultSteps)
+        axis.setReferencePoints(inOutReferencePoints)
         axis.setModel(motor)
         axis.setStepButtonPanelOrientation(Qt.Qt.Vertical)
-        layout.addWidget(axis)
+        axisLayout.addWidget(axis)
 
         # read-only, custom label, motor widget
         axis = AxisWidget()
         axis.setSteps(defaultSteps)
+        axis.setReferencePoints(defaultReferencePoints)        
         axis.setModel(motor)
-        axis.setReadOnly(True)        
+        axis.setReadOnly(True)
+        axis.setStepMenuVisible(False)
+        axis.setStepButtonsVisible(False)
+        axis.setStopButtonVisible(False)
+        axis.setOperationMenuVisible(False)
+        axis.setReferencePointsMenuVisible(False)
         axis.setCustomLabel("= {0} =".format(motor))
-        layout.addWidget(axis)        
+        axisLayout.addWidget(axis)
 
     window.show()
     app.exec_()

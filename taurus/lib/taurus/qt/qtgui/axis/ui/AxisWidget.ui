@@ -6,20 +6,14 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>419</width>
-    <height>94</height>
+    <width>451</width>
+    <height>30</height>
    </rect>
-  </property>
-  <property name="sizePolicy">
-   <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
-    <horstretch>0</horstretch>
-    <verstretch>0</verstretch>
-   </sizepolicy>
   </property>
   <property name="windowTitle">
    <string>Axis</string>
   </property>
-  <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,1,0">
+  <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,1,0">
    <property name="spacing">
     <number>0</number>
    </property>
@@ -27,26 +21,37 @@
     <number>0</number>
    </property>
    <item>
-    <widget class="QLabel" name="axisLabel"/>
-   </item>
-   <item>
-    <spacer name="labelSpacer">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeType">
-      <enum>QSizePolicy::Fixed</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>3</width>
-       <height>16</height>
-      </size>
-     </property>
-    </spacer>
+    <widget class="QWidget" name="labelPanel" native="true">
+     <layout class="QHBoxLayout" name="horizontalLayout_4">
+      <property name="spacing">
+       <number>0</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>3</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="axisLabel"/>
+      </item>
+     </layout>
+    </widget>
    </item>
    <item>
     <widget class="QWidget" name="readWritePanel" native="true">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="toolTip">
       <string>Axis current position (double click to set new position)</string>
      </property>
@@ -61,8 +66,8 @@
     </widget>
    </item>
    <item>
-    <widget class="QWidget" name="stepPanel" native="true">
-     <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0">
+    <widget class="QWidget" name="controlPanel" native="true">
+     <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,0,0,0">
       <property name="spacing">
        <number>0</number>
       </property>
@@ -70,27 +75,61 @@
        <number>0</number>
       </property>
       <item>
-       <widget class="QWidget" name="stepButtonPanel" native="true"/>
-      </item>
-      <item>
-       <widget class="QToolButton" name="stepMenuToolButton">
+       <widget class="QWidget" name="stepButtonPanel" native="true">
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
+         <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QToolButton" name="stepMenuToolButton">
         <property name="toolTip">
          <string>Step size selection</string>
         </property>
-        <property name="iconSize">
-         <size>
-          <width>16</width>
-          <height>16</height>
-         </size>
+        <property name="popupMode">
+         <enum>QToolButton::InstantPopup</enum>
+        </property>
+        <property name="toolButtonStyle">
+         <enum>Qt::ToolButtonTextBesideIcon</enum>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QToolButton" name="refPointsMenuToolButton">
+        <property name="toolTip">
+         <string>Move to a reference position</string>
         </property>
         <property name="popupMode">
          <enum>QToolButton::InstantPopup</enum>
+        </property>
+        <property name="toolButtonStyle">
+         <enum>Qt::ToolButtonTextBesideIcon</enum>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QToolButton" name="menuToolButton">
+        <property name="toolTip">
+         <string>Operation menu</string>
+        </property>
+        <property name="popupMode">
+         <enum>QToolButton::InstantPopup</enum>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="TaurusCommandToolButton" name="stopToolButton">
+        <property name="toolTip">
+         <string>Stop motor</string>
+        </property>
+        <property name="command">
+         <string>Abort</string>
+        </property>
+        <property name="autoToolTip" stdset="0">
+         <bool>false</bool>
         </property>
        </widget>
       </item>
@@ -105,6 +144,11 @@
    <extends>QWidget</extends>
    <header>taurus.qt.qtgui.container</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>TaurusCommandToolButton</class>
+   <extends>QToolButton</extends>
+   <header>taurus.qt.qtgui.button</header>
   </customwidget>
  </customwidgets>
  <resources/>
