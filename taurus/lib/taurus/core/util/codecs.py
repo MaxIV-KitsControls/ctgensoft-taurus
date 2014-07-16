@@ -110,6 +110,15 @@ class Codec(Logger):
         :raises: RuntimeError"""
         raise RuntimeError("decode cannot be called on abstract Codec")
 
+    @classmethod
+    def isEnabled(cls):
+        """tell the codec factory if the class is able to function. 
+        Implement in subclass if your codec is only enabled in some conditions
+        (ex.: if a third party python module is present).
+
+        Default implementation returns True."""
+        return True
+    
     def __str__(self):
         return '%s()' % self.__class__.__name__
     
@@ -458,6 +467,11 @@ class PlotCodec(FunctionCodec):
         FunctionCodec.__init__(self, 'plot')
 
 
+class Frame(numpy.ndarray):
+    def __init__(self, *args, **kwargs):
+        self.meta = dict()
+
+
 class VideoImageCodec(Codec):
     """A codec able to encode/decode to/from LImA video_image format.
     
@@ -483,6 +497,20 @@ class VideoImageCodec(Codec):
     """
     
     VIDEO_HEADER_FORMAT = '!IHHqiiHHHH'
+    VIDEO_HEADER_FORMAT_SIZE = struct.calcsize(VIDEO_HEADER_FORMAT)
+    FMT = 'VIDEO_IMAGE'
+    MAGIC = 0x5644454f
+    
+    VIDEO_2_NP = {
+        0: 'uint8',
+        1: 'uint16',
+        2: 'uint32',
+        3: 'uint64',
+    }
+    NP_2_VIDEO = dict((v,k) for k, v in VIDEO_2_NP.items())
+
+    def __init__(self):
+        Codec.__init__(self)
     
     def encode(self, data, *args, **kwargs):
         """encodes the given data to a LImA's video_image. The given data **must** be an numpy.array
@@ -491,15 +519,38 @@ class VideoImageCodec(Codec):
         
         :return: (sequence[str, obj]) a sequence of two elements where the first item is the encoding format of the second item object"""
 
-        format = 'VIDEO_IMAGE'
-        if len(data[0]): format += '_%s' % data[0]
-        #imgMode depends on numpy.array dtype
-        imgMode = self.__getModeId(str(data[1].dtype))
-        #frameNumber, unknown then -1
-        height,width = data[1].shape
-        header = self.__packHeader(imgMode,-1,width,height)
-        buffer = data[1].tostring()
-        return format,header+buffer
+        fmt, raw_data = data
+        if len(fmt):
+            fmt = self.FMT + "_" + fmt
+        else:
+            fmt = self.FMT
+
+        #mode depends on numpy.array dtype
+        mode = self.NP_2_VIDEO[raw_data.dtype.name]
+        try:
+            frame_nb = raw_data.meta['frame_nb']
+        except (AttributeError, KeyError):
+            frame_nb = -1
+        height, width = raw_data.shape
+        header = self.__packHeader(mode, frame_nb, width, height)
+        buff = raw_data.tostring()
+        return fmt, header+buff
+
+    @classmethod
+    def getHeader(cls, raw_data):
+        """Returns the header: a tuple of
+        magic, h_version, img_mode, frame_nb, w, h, endian, h_size, pad0, pad1
+
+        Raises exception if header is invalid"""
+        raw_data_size = len(raw_data)
+        min_header_size = cls.VIDEO_HEADER_FORMAT_SIZE
+        magic, h_version, img_mode, frame_nb, w, h, endian, h_size, pad0, pad1 = \
+            struct.unpack(cls.VIDEO_HEADER_FORMAT, raw_data[:min_header_size])
+        if magic != cls.MAGIC:
+            raise TypeError("Unsupported magic '%s" % magic)
+        if raw_data_size == min_header_size:
+            w, h = 0, 0
+        return magic, h_version, img_mode, frame_nb, w, h, endian, h_size, pad0, pad1
     
     def decode(self, data, *args, **kwargs):
         """decodes the given data from a LImA's video_image.
@@ -508,111 +559,175 @@ class VideoImageCodec(Codec):
         
         :return: (sequence[str, obj]) a sequence of two elements where the first item is the encoding format of the second item object"""
 
-        if not data[0] == 'VIDEO_IMAGE':
+        fmt, raw_data = data
+        if not fmt.startswith(self.FMT):
             return data
-        header = self.__unpackHeader(data[1][:struct.calcsize(self.VIDEO_HEADER_FORMAT)])
-        
-        imgBuffer = data[1][struct.calcsize(self.VIDEO_HEADER_FORMAT):]
-        dtype = self.__getDtypeId(header['imageMode'])
-        img1D = numpy.fromstring(imgBuffer, dtype)
-        img2D = img1D.reshape(header['height'],header['width'])
-
-        return '',img2D
-
-    def __unpackHeader(self,header):
-        h = struct.unpack(self.VIDEO_HEADER_FORMAT,header)
-        headerDict={}
-        headerDict['magic']         = h[0]
-        headerDict['headerVersion'] = h[1]
-        headerDict['imageMode']     = h[2]
-        headerDict['frameNumber']   = h[3]
-        headerDict['width']         = h[4]
-        headerDict['height']        = h[5]
-        headerDict['endianness']    = h[6]
-        headerDict['headerSize']    = h[7]
-        headerDict['padding']       = h[8:]
-        return headerDict
+        frame = None
+        raw_data_size = len(raw_data)
+        min_header_size = self.VIDEO_HEADER_FORMAT_SIZE        
+        if raw_data_size >= min_header_size:
+            magic, h_version, img_mode, frame_nb, w, h, endian, h_size, pad0, pad1 = \
+              self.getHeader(raw_data)
+            mode = self.VIDEO_2_NP.get(img_mode)
+            if mode is None:
+                raise TypeError("Unsupported mode %s" % img_mode)
+            frame = Frame((h, w), dtype=mode, buffer=raw_data[h_size:])
+            frame.meta['frame_nb'] = frame_nb
+        return fmt[len(self.FMT)+1:], frame
     
-    def __packHeader(self,imgMode,frameNumber,width,height):
-        magic = 0x5644454f
+    def __packHeader(self, imgMode, frameNumber, width, height):
         version = 1
         endian = ord(struct.pack('=H',1)[-1])
-        hsize = struct.calcsize(self.VIDEO_HEADER_FORMAT)
         return struct.pack(self.VIDEO_HEADER_FORMAT,
-                           magic,
+                           self.MAGIC,
                            version,
                            imgMode,
                            frameNumber,
                            width,
                            height,
                            endian,
-                           hsize,
+                           self.VIDEO_HEADER_FORMAT_SIZE,
                            0,0)#padding
 
-    def __getModeId(self,mode):
-        return {#when encode
-                'uint8'      : 0,#Core.Y8,
-                'uint16'     : 1,#Core.Y16,
-                'uint32'     : 2,#Core.Y32,
-                'uint64'     : 3,#Core.Y64,
-                #when decode
-                'Y8'         : 0,#Core.Y8,
-                'Y16'        : 1,#Core.Y16,
-                'Y32'        : 2,#Core.Y32,
-                'Y64'        : 3,#Core.Y64,
-                #TODO: other modes
-                #'RGB555'     : Core.RGB555,
-                #'RGB565'     : Core.RGB565,
-                #'RGB24'      : Core.RGB24,
-                #'RGB32'      : Core.RGB32,
-                #'BGR24'      : Core.BGR24,
-                #'BGR32'      : Core.BGR32,
-                #'BAYER RG8'  : Core.BAYER_RG8,
-                #'BAYER RG16' : Core.BAYER_RG16,
-                #'I420'       : Core.I420,
-                #'YUV411'     : Core.YUV411,
-                #'YUV422'     : Core.YUV422,
-                #'YUV444'     : Core.YUV444
-               }[mode]
+                           
+class QVideoImageCodec(VideoImageCodec):
+    """A codec able to encode/decode to/from LImA video_image format.
+    
+    Example::
+    
+        >>> from taurus.core.util.codecs import CodecFactory
+        >>> import PyTango
+        
+        >>> #first get an image from a LImA device to decode
+        >>> data = PyTango.DeviceProxy(ccdName).read_attribute('video_last_image').value
+        >>> cf = CodecFactory()
+        >>> codec = cf.getCodec('VIDEO_IMAGE')
+        >>> format,decoded_data = codec.decode(data)
+        >>> # encode it again to check
+        >>> format, encoded_data = codec.encode(("",decoded_data))
+        >>> #compare images excluding the header:
+        >>> data[1][32:] == encoded_data[32:]
+        >>> #The headers can be different in the frameNumber
+        >>> struct.unpack('!IHHqiiHHHH',data[1][:32])
+        (1447314767, 1, 0, 6868, 1294, 964, 0, 32, 0, 0)
+        >>> struct.unpack('!IHHqiiHHHH',encoded_data[:32])
+        (1447314767, 1, 0, -1, 1294, 964, 0, 32, 0, 0)
+    """
 
-    def __getFormatId(self,mode):
-        return {0      : 'B',
-                1      : 'H',
-                2      : 'I',
-                3      : 'L',
-                #'RGB555'     : Core.RGB555,
-                #'RGB565'     : Core.RGB565,
-                #'RGB24'      : Core.RGB24,
-                #'RGB32'      : Core.RGB32,
-                #'BGR24'      : Core.BGR24,
-                #'BGR32'      : Core.BGR32,
-                #'BAYER RG8'  : Core.BAYER_RG8,
-                #'BAYER RG16' : Core.BAYER_RG16,
-                #'I420'       : Core.I420,
-                #'YUV411'     : Core.YUV411,
-                #'YUV422'     : Core.YUV422,
-                #'YUV444'     : Core.YUV444
-               }[mode]
+    def __init__(self):
+        if not self.isEnabled():
+            raise RuntimeError("QVideoImageCodec cannot be initialized")
+        VideoImageCodec.__init__(self)
 
-    def __getDtypeId(self,mode):
-        return {0       : 'uint8',
-                1      : 'uint16',
-                2      : 'uint32',
-                3      : 'uint64',
-                #'RGB555'     : Core.RGB555,
-                #'RGB565'     : Core.RGB565,
-                #'RGB24'      : Core.RGB24,
-                #'RGB32'      : Core.RGB32,
-                #'BGR24'      : Core.BGR24,
-                #'BGR32'      : Core.BGR32,
-                #'BAYER RG8'  : Core.BAYER_RG8,
-                #'BAYER RG16' : Core.BAYER_RG16,
-                #'I420'       : Core.I420,
-                #'YUV411'     : Core.YUV411,
-                #'YUV422'     : Core.YUV422,
-                #'YUV444'     : Core.YUV444
-               }[mode]
+        import Lima.Core
+        from Qub.CTools.pixmaptools import LUT
+        self.LUT = LUT
+        self.LimaVideoMode_2_QubImageType = {
+            Lima.Core.Y8: LUT.Scaling.Y8,
+            Lima.Core.Y16: LUT.Scaling.Y16,
+            Lima.Core.Y32: LUT.Scaling.Y32,
+            Lima.Core.Y64: LUT.Scaling.Y64,
+            Lima.Core.RGB555: LUT.Scaling.RGB555,
+            Lima.Core.RGB565: LUT.Scaling.RGB565,
+            Lima.Core.RGB24: LUT.Scaling.RGB24,
+            Lima.Core.RGB32: LUT.Scaling.RGB32,
+            Lima.Core.BGR24: LUT.Scaling.BGR24,
+            Lima.Core.BGR32: LUT.Scaling.BGR32,
+            Lima.Core.BAYER_RG8: LUT.Scaling.BAYER_RG8,
+            Lima.Core.BAYER_RG16: LUT.Scaling.BAYER_RG16,
+            Lima.Core.BAYER_BG8: LUT.Scaling.BAYER_BG8,
+            Lima.Core.BAYER_BG16: LUT.Scaling.BAYER_BG16,
+            Lima.Core.I420: LUT.Scaling.I420,
+            Lima.Core.YUV411: LUT.Scaling.YUV411,
+            Lima.Core.YUV422: LUT.Scaling.YUV422,
+            Lima.Core.YUV444: LUT.Scaling.YUV444,
+        }
+        # default scaling
+        self.__scaling = LUT.Scaling()
 
+    @classmethod
+    def isEnabled(cls):
+        try:
+            import Lima.Core
+            from Qub.CTools.pixmaptools import LUT
+            LUT.Scaling
+            LUT.raw_video_2_image
+        except:
+            
+            return False
+        return True
+                
+    def decode(self, data, *args, **kwargs):
+        """decodes the given data from a LImA's video_image.
+            
+        :param data: (sequence[str, obj]) a sequence of two elements where the first item is the encoding format of the second item object
+        
+        :return: (sequence[str, obj]) a sequence of two elements where the first item is the encoding format of the second item object"""
+
+        fmt, raw_data = data
+        if not fmt.startswith(self.FMT):
+            return data
+        frame = None
+        raw_data_size = len(raw_data)
+        min_header_size = self.VIDEO_HEADER_FORMAT_SIZE
+        if raw_data_size >= min_header_size:
+            magic, h_version, img_mode, frame_nb, w, h, endian, h_size, pad0, pad1 = \
+              self.getHeader(raw_data)
+            qub_mode = self.LimaVideoMode_2_QubImageType.get(img_mode)            
+            if qub_mode is None:
+                raise TypeError("Unsupported mode %s" % img_mode)
+            data = raw_data[h_size:]
+            if qub_mode == self.LUT.Scaling.Y32:
+                # At the time Qub.LUT is not implementing Y32
+                frame = Frame((h, w), dtype=numpy.uint32, buffer=data)
+                frame.meta['frame_nb'] = frame_nb
+            else:
+                # a QImage here
+                scaling = self.LUT.Scaling()
+                scaling.autoscale_plus_minus_sigma(data, w, h, qub_mode, 3)
+                res, qimage = self.LUT.raw_video_2_image(raw_data[h_size:],
+                                                         w, h, qub_mode, scaling)
+                if not res:
+                    raise ValueError("Cannot decode frame")
+                frame = QVideoImageCodec.imageToArray(qimage, copy=True)
+                
+        return fmt[len(self.FMT)+1:], frame
+
+    @staticmethod
+    def imageToArray(qimage, copy=False, transpose=False):
+        """
+        Convert a QImage into numpy array. The image must have format RGB32,
+        ARGB32, or ARGB32_Premultiplied. By default, the image is not copied;
+        changes made to the array will appear in the QImage as well (beware: if 
+        the QImage is collected before the array, there may be trouble).
+        The array will have shape (width, height, (b,g,r,a)).
+        """
+        fmt = qimage.format()
+        ptr = qimage.bits()
+        if ptr is None:
+            arr = numpy.ndarray((0,0), dtype=numpy.ubyte)
+        else:
+            ptr.setsize(qimage.byteCount())
+            arr = numpy.asarray(ptr)
+        if qimage.byteCount() != arr.size * arr.itemsize:
+            # Required for Python 2.6, PyQt 4.10
+            # If this works on all platforms, then there is no need to use np.asarray..
+            arr = numpy.frombuffer(ptr, numpy.ubyte, qimage.byteCount())
+    
+        if fmt == qimage.Format_RGB32:
+            arr = arr.reshape(qimage.height(), qimage.width(), 3)
+        elif fmt == qimage.Format_ARGB32 or fmt == qimage.Format_ARGB32_Premultiplied:
+            arr = arr.reshape(qimage.height(), qimage.width(), 4)
+    
+        if copy:
+            arr = arr.copy()
+        
+        if transpose:
+            return arr.transpose((1,0,2))
+        else:
+            return arr
+        
+        
 class CodecPipeline(Codec, list):
     """The codec class used when encoding/decoding data with multiple encoders
 
@@ -710,16 +825,16 @@ class CodecFactory(Singleton, Logger):
     
     #: Default minimum map of registered codecs
     CODEC_MAP = CaselessDict({
-        'json'   : JSONCodec,
-        'bson'   : BSONCodec,
-        'bz2'    : BZ2Codec,
-        'zip'    : ZIPCodec,
-        'pickle' : PickleCodec,
-        'plot'   : PlotCodec,
-        'VIDEO_IMAGE' : VideoImageCodec,
-        'null'   : NullCodec,
-        'none'   : NullCodec,
-        ''       : NullCodec })
+        'json'   : [JSONCodec,],
+        'bson'   : [BSONCodec,],
+        'bz2'    : [BZ2Codec,],
+        'zip'    : [ZIPCodec,],
+        'pickle' : [PickleCodec,],
+        'plot'   : [PlotCodec,],
+        'VIDEO_IMAGE' : [QVideoImageCodec, VideoImageCodec],
+        'null'   : [NullCodec,],
+        'none'   : [NullCodec,],
+        ''       : [NullCodec], })
 
     def __init__(self):
         """ Initialization. Nothing to be done here for now."""
@@ -739,28 +854,37 @@ class CodecFactory(Singleton, Logger):
         self._codecs = CaselessDict()
 
     def registerCodec(self, format, klass):
-        """Registers a new codec. If a codec already exists for the given format
-        it is removed.
+        """Registers a new codec with highest priority. If codecs already
+        exist for the given format they are pushed behind in priority
         
         :param format: (str) the codec id
         :param klass: (Codec class) the class that handles the format"""
-        self._codec_klasses[format] = klass
+        klasses = self._codec_klasses.get(format)
+        if klasses is None:
+            self._codec_klasses[format] = klasses = []
+        klasses.insert(0, klass)
         
         # del old codec if exists
         if self._codecs.has_key(format):
             del self._codecs[format]
 
-    def unregisterCodec(self, format):
+    def unregisterCodec(self, format, klass=None):
         """Unregisters the given format. If the format does not exist an exception
         is thrown.
         
         :param format: (str) the codec id
         
         :raises: KeyError"""
-        if self._codec_klasses.has_key(format):
-            del self._codec_klasses[format]
-        
-        if self._codecs.has_key(format):
+        if format in self._codec_klasses:
+            if klass is None:
+                del self._codec_klasses[format]
+            else:
+                klasses = self._codec_klasses[format]
+                klasses.remove(klass)
+                if not len(klasses):
+                    del self._codec_klasses[format]
+                    
+        if format in self._codecs:
             del self._codecs[format]
 
     def getCodec(self, format):
@@ -773,18 +897,20 @@ class CodecFactory(Singleton, Logger):
         codec = self._codecs.get(format)
         if codec is None:
             codec = self._getNewCodec(format)
-            if not codec is None: self._codecs[format] = codec
+            if not codec is None:
+                self._codecs[format] = codec
         return codec
         
     def _getNewCodec(self, format):
-        klass = self._codec_klasses.get(format)
-        if not klass is None:
-            ret = klass()
-        else:
-            try:
-                ret = CodecPipeline(format)
-            except:
-                ret = self._codec_klasses.get('')()
+        klasses = self._codec_klasses.get(format)
+        if klasses is not None:
+            for klass in klasses:
+                if klass.isEnabled():
+                    return klass()
+        try:
+            ret = CodecPipeline(format)
+        except:
+            ret = self._getNewCodec(None)
         return ret
     
     def decode(self, data, *args, **kwargs):
