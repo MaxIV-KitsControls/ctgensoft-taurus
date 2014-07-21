@@ -180,7 +180,11 @@ class TaurusWidgetFactory(Singleton, Logger):
                             qt_info = attr.getQtDesignerPluginInfo()
                             taurus_ret[dir_name] = qt_info['module'], attr
                             qt_widgets[dir_name] = qt_info['module'], attr
-                            self.debug("registered taurus widget %s", dir_name) 
+                            self.debug("registered taurus widget %s", dir_name)
+                        else:
+                            qt_info = attr.getQtDesignerPluginInfo()
+                            qt_widgets[dir_name] = qt_info['module'], attr
+                            self.debug("registered taurus widget %s", dir_name)
                 except Exception, e:
                     pass
         
