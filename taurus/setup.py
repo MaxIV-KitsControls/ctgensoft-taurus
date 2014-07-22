@@ -174,6 +174,8 @@ extra_packages = [
     'taurus.qt.qtgui.extra_macroexecutor',
     'taurus.qt.qtgui.extra_sardana',
     'taurus.qt.qtgui.extra_pool',
+
+    'taurus.qt.qtgui.esrf',
 ]
 
 provides = [
