@@ -24,7 +24,7 @@ from taurus.external.qt import Qt
 from taurus.qt.qtgui.base import TaurusBaseWidget
 from taurus.qt.qtgui.dialog import TaurusMessageBox
 
-from taurus_esrf.qt.qtgui.macro import MacroForm
+from taurus.qt.qtgui.esrf.macro import MacroForm
 
 
 class SpecMacroForm(MacroForm, TaurusBaseWidget):
@@ -134,7 +134,7 @@ class SpecMacroForm(MacroForm, TaurusBaseWidget):
 
     @classmethod
     def getQtDesignerPluginInfo(cls):
-        return dict(module="taurus_esrf.qt.qtgui.spec",
+        return dict(module="taurus.qt.qtgui.esrf.spec",
                     icon=":designer/macroserver.png",
                     group="ESRF Spec Widgets")
 
@@ -145,7 +145,7 @@ def main():
     from taurus.qt.qtgui.application import TaurusApplication
     from taurus.qt.qtgui.container import QGroupWidget
     from taurus.qt.qtgui.resource import getThemeIcon
-    from taurus_esrf.qt.qtgui.macro import Argument
+    from taurus.qt.qtgui.esrf.macro import Argument
     
     parser = get_taurus_parser()
     parser.usage = "%prog [options] <spec device name>"

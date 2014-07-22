@@ -100,7 +100,7 @@ class AscanWidget(Qt.QWidget):
 
     @classmethod
     def getQtDesignerPluginInfo(cls):
-        return dict(module="taurus_esrf.qt.qtgui.macro",
+        return dict(module="taurus.qt.qtgui.esrf.macro",
                     icon=":designer/macroserver.png",
                     group="ESRF Macro Widgets")
 
@@ -166,7 +166,7 @@ class ANscanWidget(Qt.QWidget):
 
     @classmethod
     def getQtDesignerPluginInfo(cls):
-        return dict(module="taurus_esrf.qt.qtgui.macro",
+        return dict(module="taurus.qt.qtgui.esrf.macro",
                     icon=":designer/macroserver.png",
                     group="ESRF Macro Widgets")
 
@@ -469,7 +469,7 @@ class MacroForm(Qt.QWidget):
         
     @classmethod
     def getQtDesignerPluginInfo(cls):
-        return dict(module="taurus_esrf.qt.qtgui.macro",
+        return dict(module="taurus.qt.qtgui.esrf.macro",
                     icon=":designer/macroserver.png",
                     group="ESRF Macro Widgets")
 
