@@ -176,7 +176,10 @@ extra_packages = [
     'taurus.qt.qtgui.extra_pool',
 
     'taurus.qt.qtgui.esrf',
-    'taurus.qt.qtgui.esrf.ui',
+    'taurus.qt.qtgui.esrf.axis',
+    'taurus.qt.qtgui.esrf.axis.ui',
+    'taurus.qt.qtgui.esrf.macro',
+    'taurus.qt.qtgui.esrf.spec',
 ]
 
 provides = [
