@@ -219,6 +219,13 @@ class AxisWidget(TaurusWidget):
         # Stop button
         ui.stopToolButton.setIcon(getThemeIcon("process-stop"))
 
+        # need to resize button icon size because of some styles (windows, kde)
+        defaultButtonSize = Qt.QSize(24, 24)
+        ui.menuToolButton.setIconSize(defaultButtonSize)
+        ui.refPointsMenuToolButton.setIconSize(defaultButtonSize)
+        ui.stepMenuToolButton.setIconSize(defaultButtonSize)
+        ui.stopToolButton.setIconSize(defaultButtonSize)
+        
     def __onExpertPanelTriggered(self, checked=False):
         dialog = Qt.QDialog(self)
         name = self.getModelName()
