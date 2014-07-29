@@ -28,4 +28,5 @@ for the ESRF"""
 
 __docformat__ = 'restructuredtext'
 
+from .spec import SpecAScanWidget
 from .spec import SpecMacroForm

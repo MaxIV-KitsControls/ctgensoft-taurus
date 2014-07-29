@@ -17,7 +17,9 @@ Spec macros.
 
 __docformat__ = 'restructuredtext'
 
+import sys
 import time
+import functools
 
 from taurus.core import TaurusEventType
 from taurus.external.qt import Qt
@@ -25,91 +27,239 @@ from taurus.qt.qtgui.base import TaurusBaseWidget
 from taurus.qt.qtgui.dialog import TaurusMessageBox
 
 from taurus.qt.qtgui.esrf.macro import MacroForm
+from taurus.qt.qtgui.esrf.macro import AScanWidget, ANScanWidget
+
+TWENTY_DAYS = 60*60*24*20
 
 
-class SpecMacroForm(MacroForm, TaurusBaseWidget):
+def Specable(klass=None):
+    if klass is None:
+        return functools.partial(Specable)
 
-    TWENTY_DAYS = 60*60*24*20
+    def _onCommandFinished(widget, result, error=False):
+        widget.ui.runButton.setEnabled(True)
+
+    def _executeCommand(widget):
+        model = widget.getModelObj()
+        if model is None:
+            raise ValueError("No executor has been connected")
+
+        command = "ExecuteCmdA"
+        args = [widget.getCommandLine()]
+        result = model.command(command, args=args, asynch=True,
+                               callback=widget._onWaitReply,
+                               timeout=TWENTY_DAYS)
+        widget.ui.runButton.setEnabled(False)
+        return result
+
+    def _onRunClicked(widget, checked=False):
+        if widget.isDangerous() and not widget.getForceDangerousOperations():
+            result = Qt.QMessageBox.question(widget,
+                "Potentially dangerous action",
+                "{0}\nProceed?".format(widget.getDangerMessage()),
+                Qt.QMessageBox.Ok|Qt.QMessageBox.Cancel, Qt.QMessageBox.Ok)
+            if result != Qt.QMessageBox.Ok:
+                return
+        try:
+            widget._executeCommand()
+        except:
+            msgbox = TaurusMessageBox(*sys.exc_info())
+            msgbox.setWindowTitle("Unhandled exception running macro")
+            msgbox.exec_()
+
+    def _onWaitReply(widget, result, error=False):
+        if error:
+            widget.setStatusTip("Error executing macro '{0}'".format(widget.macroName))
+        else:
+            model = widget.getModelObj()
+            while not model.command("IsReplyArrived", args=[result], asynch=False):
+                time.sleep(0.1)
+            result = model.command("GetReply", args=[result], asynch=False)
+        widget.commandFinished.emit(result, error)
+
+    def _motorListChanged(widget, evt_src, evt_type, evt_value):
+        if evt_type in (TaurusEventType.Change, TaurusEventType.Periodic):
+            motors = [value.split() for value in evt_value.value]
+            widget.motorListChanged.emit(motors)
+
+    def _onModelChanged(widget, model_name):
+        model = widget.getModelObj()
+        if model:        
+            motor_list_attr = model.getAttribute("MotorList")
+            motor_list_attr.addListener(widget._motorListChanged)
+
+    def getMotors(widget):
+        model = widget.getModelObj()
+        motors = {}
+        for motor in widget.getModelObj().getAttribute("MotorList").read().value:
+            alias, name = motor.split()
+            motors[alias] = name
+        return motors
+            
+    init_original = klass.__init__
+    def _init(widget, *args, **kwargs):
+        init_original(widget, *args, **kwargs)
+        Qt.QObject.connect(widget,
+                           Qt.SIGNAL(TaurusBaseWidget.ModelChangedSignal),
+                           widget._onModelChanged)
+        widget.runClicked.connect(widget._onRunClicked)
+        widget.commandFinished.connect(widget._onCommandFinished)
+        
+    klass._onCommandFinished = _onCommandFinished
+    klass._executeCommand = _executeCommand
+    klass._onRunClicked = _onRunClicked
+    klass._onWaitReply = _onWaitReply
+    klass.__init__ = _init
+
+    klass._motorListChanged = _motorListChanged
+    klass._onModelChanged = _onModelChanged
+    klass.getMotors = getMotors
+    
+    return klass
+
+
+@Specable
+class SpecAScanWidget(AScanWidget, TaurusBaseWidget):
 
     commandFinished = Qt.Signal(object, bool)
-
     motorListChanged = Qt.Signal(object)
     
+    def __init__(self, parent=None, designMode=False):
+        name = self.__class__.__name__
+        AScanWidget.__init__(self, parent=parent, designMode=designMode)
+        TaurusBaseWidget.__init__(self, name, designMode=designMode)
+        self.motorListChanged.connect(self.__onMotorListChanged)
+        self.ui.axisComboBox.currentIndexChanged.connect(self.__onMotorSelectionChanged)
+
+    def __onMotorSelectionChanged(self, index):
+        minv, maxv = float('-inf'), float('+inf')
+        units = ''
+        motors = self.getMotors()
+        if index >= 0:
+            motor_name = motors[self.ui.axisComboBox.itemData(index)]
+            db = self.getModelObj().getParentObj()
+            props = db.get_device_attribute_property(motor_name, 'position')['position']
+            minv = float(props.get('min_value', (minv,))[0])
+            maxv = float(props.get('max_value', (maxv,))[0])
+            if 'unit' in props:
+                units = " " + props['unit'][0]
+        self.ui.startSpinBox.setMinimum(minv)
+        self.ui.startSpinBox.setMaximum(maxv)        
+        self.ui.startSpinBox.setSuffix(units)
+        self.ui.stopSpinBox.setMinimum(minv)
+        self.ui.stopSpinBox.setMaximum(maxv)        
+        self.ui.stopSpinBox.setSuffix(units)            
+        
+    def __onMotorListChanged(self, motors):
+        axisComboBox = self.ui.axisComboBox
+        current_motor = axisComboBox.currentText()
+        axisComboBox.clear()
+        for motor_alias, _ in motors:
+            axisComboBox.addItem(motor_alias, motor_alias)
+        if current_motor:
+            axisComboBox.setCurrentIndex(axisComboBox.findText(current_motor))
+        
+    @classmethod
+    def getQtDesignerPluginInfo(cls):
+        return dict(module="taurus.qt.qtgui.esrf.spec",
+                    icon=":designer/macroserver.png",
+                    group="ESRF Spec Widgets")
+
+    model = Qt.Property(str, TaurusBaseWidget.getModel,
+                        TaurusBaseWidget.setModel, TaurusBaseWidget.resetModel)
+    
+
+@Specable
+class SpecANScanWidget(ANScanWidget, TaurusBaseWidget):
+
+    commandFinished = Qt.Signal(object, bool)
+    motorListChanged = Qt.Signal(object)
+    
+    def __init__(self, parent=None, designMode=False):
+        name = self.__class__.__name__
+        ANScanWidget.__init__(self, parent=parent, designMode=designMode)
+        TaurusBaseWidget.__init__(self, name, designMode=designMode)
+        self.motorListChanged.connect(self.__onMotorListChanged)
+        self.dimensionsChanged.connect(self.__onDimensionsChanged)
+
+    def __onDimensionsChanged(self, n):
+        layout = self.layout()
+        for dim in range(n):
+            motorWidget = self.getMotorWidget(dim)
+            motorWidget.currentIndexChanged.connect(self.__onMotorSelectionChanged)
+        
+    def __onMotorSelectionChanged(self, index):
+        self.__updateMotorWidgets()
+
+    def __updateMotorWidgets(self):
+        motors = self.getMotors()
+        db = self.getModelObj().getParentObj()
+        for dim in range(self.dimensions):
+            minv, maxv = float('-inf'), float('+inf')
+            units = ''
+            motorWidget = self.getMotorWidget(dim)
+            startWidget = self.getStartWidget(dim)
+            stopWidget = self.getStopWidget(dim)
+            index = motorWidget.currentIndex()
+            if index >= 0:
+                motor_name = motors[motorWidget.itemData(index)]
+                props = db.get_device_attribute_property(motor_name, 'position')['position']
+                minv = float(props.get('min_value', (minv,))[0])
+                maxv = float(props.get('max_value', (maxv,))[0])
+                if 'unit' in props:
+                    units = " " + props['unit'][0]
+            startWidget.setMinimum(minv)
+            startWidget.setMaximum(maxv)            
+            startWidget.setSuffix(units)
+            stopWidget.setMinimum(minv)
+            stopWidget.setMaximum(maxv)            
+            stopWidget.setSuffix(units)            
+        
+    def __onMotorListChanged(self, motors):
+        layout = self.layout()
+        for dim in range(self.dimensions):
+            axisComboBox = layout.itemAtPosition(dim, 0).widget()
+            current_motor = axisComboBox.currentText()
+            axisComboBox.clear()
+            for motor_alias, motor_name in motors:
+                axisComboBox.addItem(motor_alias, motor_alias)
+            if current_motor:
+                axisComboBox.setCurrentIndex(axisComboBox.findText(current_motor))
+        
+    @classmethod
+    def getQtDesignerPluginInfo(cls):
+        return dict(module="taurus.qt.qtgui.esrf.spec",
+                    icon=":designer/macroserver.png",
+                    group="ESRF Spec Widgets")
+    
+    model = Qt.Property(str, TaurusBaseWidget.getModel,
+                        TaurusBaseWidget.setModel, TaurusBaseWidget.resetModel)
+
+
+@Specable
+class SpecMacroForm(MacroForm, TaurusBaseWidget):
+
+    commandFinished = Qt.Signal(object, bool)
+    motorListChanged = Qt.Signal(object)
     
     def __init__(self, parent=None, designMode=False):
         name = self.__class__.__name__
         MacroForm.__init__(self, parent=parent, designMode=designMode)
         TaurusBaseWidget.__init__(self, name, designMode=designMode)
-        self.runClicked.connect(self.__onRunClicked)
-        self.commandFinished.connect(self.__onCommandFinished)
         self.motorListChanged.connect(self.__onMotorListChanged)
-
-    def __onCommandFinished(self, result, error=False):
-        self.runButton.setEnabled(True)
-        
-    def _executeCommand(self):
-        """
-        Executes the active command on the registered model. If widget is in
-        asynchronous mode, the method returns None.
-        If in synchronous mode the method will execute the command and block
-        until it finishes. It returns the result in 
-        """
-        macroName = self.macroName
-        if not macroName:
-            raise ValueError("No macro has been specified")
-        model = self.getModelObj()
-        if model is None:
-            raise ValueError("No executor has been connected")
-
-        command = "ExecuteCmdA"
-        args = [macroName] + self.getArgumentValueList()
-        args = [" ".join(map(str, args))]
-        result = model.command(command, args=args, asynch=True,
-                               callback=self.__onWaitReply,
-                               timeout=self.TWENTY_DAYS)
-        self.runButton.setEnabled(False)
-        return result
-
-    def __onRunClicked(self, checked=False):
-        if self.isDangerous() and not self.getForceDangerousOperations():
-            result = Qt.QMessageBox.question(self,
-                "Potentially dangerous action",
-                "{0}\nProceed?".format(self.getDangerMessage()),
-                Qt.QMessageBox.Ok|Qt.QMessageBox.Cancel, Qt.QMessageBox.Ok)
-            if result != Qt.QMessageBox.Ok:
-                return
-        try:
-            self._executeCommand()
-        except:
-            import sys
-            msgbox = TaurusMessageBox(*sys.exc_info())
-            msgbox.setWindowTitle("Unhandled exception running macro")
-            msgbox.exec_()
-
-    def __onWaitReply(self, cmd_id, error=False):
-        model = self.getModelObj()
-        while not model.command("IsReplyArrived", args=[cmd_id], asynch=False):
-            time.sleep(0.1)
-        result = model.command("GetReply", args=[cmd_id], asynch=False)
-        self.commandFinished.emit(result, False)
-
-    def __motorListChanged(self, evt_src, evt_type, evt_value):
-        if evt_type in (TaurusEventType.Change, TaurusEventType.Periodic):
-            motors = [value.split() for value in evt_value.value]
-            self.motorListChanged.emit(motors)
 
     def __onMotorListChanged(self, motors):
         self.__fillMotorArgumentWidgets(motors)
 
     def __fillMotorArgumentWidgets(self, motors):
         argw = self.getWidgetArguments()
-        for argument, label, field in argw:
+        for argument, _, field in argw:
             if argument.dtype == 'motor':
                 field.clear()
-                for motor_alias, motor_name in motors:
+                for motor_alias, _ in motors:
                     field.addItem(motor_alias, motor_alias)
                 if argument.default_value is not None:
-                    field.setCurrentIndex(field.findData(self.default_value))
+                    field.setCurrentIndex(field.findData(argument.default_value))
 
     def _updateArguments(self):
         MacroForm._updateArguments(self)
@@ -119,25 +269,13 @@ class SpecMacroForm(MacroForm, TaurusBaseWidget):
             motors = [value.split() for value in evt_value.value]
             self.__fillMotorArgumentWidgets(motors)
         
-    def setModel(self, model_name):
-        model = self.getModelObj()
-        if model:
-            motor_list_attr = model.getAttribute("MotorList")
-            motor_list_attr.removeListener(self.__motorListChanged)
-
-        TaurusBaseWidget.setModel(self, model_name)
-        
-        model = self.getModelObj()
-        if model:        
-            motor_list_attr = model.getAttribute("MotorList")
-            motor_list_attr.addListener(self.__motorListChanged)
-
     @classmethod
     def getQtDesignerPluginInfo(cls):
         return dict(module="taurus.qt.qtgui.esrf.spec",
                     icon=":designer/macroserver.png",
                     group="ESRF Spec Widgets")
 
+    
 
 def main():
     import sys
@@ -214,6 +352,25 @@ def main():
     layout.addWidget(w3)
     windowLayout.addWidget(panel3)
 
+    panel4 = QGroupWidget()
+    panel4.setTitle("ascan")
+    layout = panel4.content().layout()
+    layout.setMargin(3)
+    w4 = SpecAScanWidget()
+    w4.setModel(spec)
+    layout.addWidget(w4)
+    windowLayout.addWidget(panel4)
+
+    panel5 = QGroupWidget()
+    panel5.setTitle("a3scan")
+    layout = panel5.content().layout()
+    layout.setMargin(3)
+    w5 = SpecANScanWidget()
+    w5.setDimensions(3)
+    w5.setModel(spec)
+    layout.addWidget(w5)
+    windowLayout.addWidget(panel5)    
+    
     window.show()
     app.exec_()
 

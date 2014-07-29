@@ -12,7 +12,8 @@
 
 """
 This package contains a collection of Qt based widgets designed to execute
-Spec macros.
+procedures. They can be used to execute macros from SPEC, macros from the
+sardana macro executor, simple python functions, etc.
 """
 
 __docformat__ = 'restructuredtext'
@@ -35,10 +36,16 @@ ascan - one-motor scan
      time is given by time, which if positive, specifies seconds and if negative, specifies monitor counts.
 """
 
-class AscanWidget(Qt.QWidget):
+
+class AScanWidget(Qt.QWidget):
+    """Single axis, absolute scan widget"""
+    
+    runClicked = Qt.Signal(bool)
 
     _DefaultOrientation = Qt.Qt.Horizontal
-    
+
+    macroName = 'ascan'
+
     def __init__(self, parent=None, designMode=False):
         Qt.QWidget.__init__(self, parent)
         self.__orientation = self._DefaultOrientation
@@ -59,6 +66,8 @@ class AscanWidget(Qt.QWidget):
         self.ui.timeSpinBox.setMinimum(float('-inf'))
         self.ui.timeSpinBox.setMaximum(float('+inf'))
         self.ui.timeSpinBox.setSuffix(" s")
+        icon = getIcon(":/actions/media_playback_start.svg")
+        self.ui.runButton = Qt.QPushButton(icon, "")
         layout = Qt.QBoxLayout(Qt.QBoxLayout.LeftToRight, self)
         layout.setMargin(0)
         layout.addWidget(self.ui.axisComboBox)
@@ -66,8 +75,10 @@ class AscanWidget(Qt.QWidget):
         layout.addWidget(self.ui.stopSpinBox)
         layout.addWidget(self.ui.intervalsSpinBox)
         layout.addWidget(self.ui.timeSpinBox)
-                                
+        layout.addWidget(self.ui.runButton)        
+
         self.ui.axisComboBox.currentIndexChanged[int].connect(self.__onAxisChanged)
+        self.ui.runButton.clicked.connect(self.runClicked)
 
         self.setToolTip(_ASCAN_DESC)
         
@@ -111,14 +122,42 @@ class AscanWidget(Qt.QWidget):
         self.ui.intervalsSpinBox.setEnabled(enabled)
         self.ui.timeSpinBox.setEnabled(enabled)
 
+    def getRunButtonVisible(self):
+        return self.ui.runButton.isVisible()
 
-class ANscanWidget(Qt.QWidget):
+    def setRunButtonVisible(self, visible):
+        self.ui.runButton.setVisible(visible)
 
+    def resetRunButtonVisible(self):
+        self.setRunButtonVisible(True)
+
+    runButtonVisible = Qt.Property(bool, getRunButtonVisible,
+                                   setRunButtonVisible, resetRunButtonVisible)
+
+    def getArgumentValueList(self):
+        ui = self.ui
+        widgets = ui.axisComboBox, ui.startSpinBox, ui.stopSpinBox, ui.intervalsSpinBox, ui.timeSpinBox
+        return [_getWidgetValue(w) for w in widgets]
+    
+    def getCommandLineList(self):
+        return [self.macroName] + self.getArgumentValueList()
+
+    def getCommandLine(self):
+        return " ".join(map(str, self.getCommandLineList()))
+
+
+class ANScanWidget(Qt.QWidget):
+    """Multiple axis, absolute scan widget"""
+    
+    runClicked = Qt.Signal(bool)
+    dimensionsChanged = Qt.Signal(int)
+    
     _DefaultDimensions = 1
     
     def __init__(self, parent=None, designMode=False):
         Qt.QWidget.__init__(self, parent)
-        self.__dimensions = self._DefaultDimensions
+        self.__old_dimensions = 0
+        self.__dimensions = 0
         self.ui = _UI()
         layout = Qt.QGridLayout(self)
         self.ui.intervalsSpinBox = Qt.QSpinBox(self)
@@ -131,18 +170,23 @@ class ANscanWidget(Qt.QWidget):
         self.ui.timeSpinBox.setMinimum(float('-inf'))
         self.ui.timeSpinBox.setMaximum(float('+inf'))
         self.ui.timeSpinBox.setSuffix(" s")
-
+        icon = getIcon(":/actions/media_playback_start.svg")
+        self.ui.runButton = Qt.QPushButton(icon, "")
+        self.ui.runButton.clicked.connect(self.runClicked)
+        
         layout.setMargin(0)
         layout.addWidget(self.ui.intervalsSpinBox, 0, 3)
         layout.addWidget(self.ui.timeSpinBox, 0, 4)
+        layout.addWidget(self.ui.runButton, 0, 5)
 
-        self.__updateDimensions(0, self.__dimensions)
+        self.dimensionsChanged.connect(self.__onDimensionsChanged)
+        self.setDimensions(self._DefaultDimensions)
 
-    def __updateDimensions(self, old_n, n):
+    def __onDimensionsChanged(self, n):
+        old_n = self.__old_dimensions
         layout = self.layout()
         if old_n == n:
             return
-        col_n = layout.columnCount()
         while old_n > n:
             for col in range(3):
                 widget = layout.itemAtPosition(old_n - 1, col).widget()
@@ -163,7 +207,39 @@ class ANscanWidget(Qt.QWidget):
             layout.addWidget(startSpinBox, old_n, 1)
             layout.addWidget(stopSpinBox, old_n, 2)
             old_n += 1
+        if n > 1:
+            self.macroName = "a{0}scan".format(n)
+        else:
+            self.macroName = "ascan"
 
+    def getMotorWidget(self, dim):
+        return self.layout().itemAtPosition(dim, 0).widget()
+
+    def getStopWidget(self, dim):
+        return self.layout().itemAtPosition(dim, 1).widget()
+            
+    def getStartWidget(self, dim):
+        return self.layout().itemAtPosition(dim, 2).widget()
+                
+    def getWidgets(self):
+        widgets = []
+        for dim in range(self.__dimensions):
+            widgets.append(self.getMotorWidget(dim))
+            widgets.append(self.getStartWidget(dim))
+            widgets.append(self.getStopWidget(dim))
+        widgets.append(self.ui.intervalsSpinBox)
+        widgets.append(self.ui.timeSpinBox)
+        return widgets
+            
+    def getArgumentValueList(self):
+        return [_getWidgetValue(w) for w in self.getWidgets()]
+
+    def getCommandLineList(self):
+        return [self.macroName] + self.getArgumentValueList()
+
+    def getCommandLine(self):
+        return " ".join(map(str, self.getCommandLineList()))
+        
     @classmethod
     def getQtDesignerPluginInfo(cls):
         return dict(module="taurus.qt.qtgui.esrf.macro",
@@ -181,9 +257,11 @@ class ANscanWidget(Qt.QWidget):
         return self.__dimensions
 
     def setDimensions(self, dimensions):
-        old_dimensions = self.__dimensions
+        if dimensions == self.__dimensions:
+            return
+        self.__old_dimensions = self.__dimensions
         self.__dimensions = dimensions
-        self.__updateDimensions(old_dimensions, dimensions)
+        self.dimensionsChanged.emit(dimensions)
 
     def resetDimensions(self):
         self.setDimensions(self._DefaultDimensions)
@@ -191,9 +269,21 @@ class ANscanWidget(Qt.QWidget):
     dimensions = Qt.Property(int, getDimensions, setDimensions,
                              resetDimensions)
 
+    def getRunButtonVisible(self):
+        return self.ui.runButton.isVisible()
+
+    def setRunButtonVisible(self, visible):
+        self.ui.runButton.setVisible(visible)
+
+    def resetRunButtonVisible(self):
+        self.setRunButtonVisible(True)
+
+    runButtonVisible = Qt.Property(bool, getRunButtonVisible,
+                                   setRunButtonVisible, resetRunButtonVisible)
 
 class Argument:
-
+    """Object containing argument information"""
+    
     def __init__(self, name=None, dtype=None, label=None, unit=None,
                  tooltip=None, statustip=None, icon=None, min_value=None,
                  max_value=None, default_value=None):
@@ -303,7 +393,7 @@ class Argument:
         return json.dumps(self.__to_dict())
 
 
-def _getWidgetValue(argument, widget):
+def _getWidgetValue(widget):
     if isinstance(widget, Qt.QLineEdit):
         return widget.text()
     elif isinstance(widget, Qt.QAbstractSpinBox):
@@ -313,7 +403,29 @@ def _getWidgetValue(argument, widget):
     elif isinstance(widget, Qt.QCheckBox):
         return widget.isChecked()
 
-    
+
+_ARG_DOC = """\
+A list of strings. Each string should be a JSON like representation of a dict
+with the following elements:
+  - name: a string (mandatory)
+  - label: a string (optional, if not given name is used as label)
+  - dtype: a string (optional, defaults to 'str'. Possible values:
+    'float', 'int', 'bool', 'str', 'motor' or a list of strings with possible values
+  - min_value: int/float (optional, defaults to -inf) (if dtype is not numeric is ignored)
+  - max_value: int/float (optional, defaults to +inf) (if dtype is not numeric is ignored)
+  - unit: a string with unit name (optional, default is no unit)
+  - tooltip: a string with argument tooltip (optional, default is no tooltip)
+  - statustip: a string with argument statustip (optional, default is no statustip)
+  - default_value: default value (depends on type) (optional, default is no default value)
+
+Examples:
+
+  1. {"name": "motor", "dtype": "motor"}
+  2. {"name": "start_pos", "label": "Start position", "dtype": "float"}
+  3. {"unit": "KeV", "name": "energy_start", "dtype": "float", "min_value": 0.0, "tooltip": "starting energy", "label": "Energy start"}
+"""
+
+
 class MacroForm(Qt.QWidget):
     """
     A form widget designed to execute a macro/function with a specified set of
@@ -367,15 +479,16 @@ class MacroForm(Qt.QWidget):
         self.__name = ""
         self.__arguments = []
         self.__argumentWidgets = []
+        self.ui = _UI()
         Qt.QWidget.__init__(self, parent)
         layout = Qt.QFormLayout(self)
         layout.setMargin(3)
         layout.setSpacing(3)
         
         icon = getIcon(":/actions/media_playback_start.svg")
-        self.runButton = Qt.QPushButton(icon, "")
-        layout.addRow(self.runButton)
-        self.runButton.clicked.connect(self.runClicked)
+        self.ui.runButton = Qt.QPushButton(icon, "")
+        layout.addRow(self.ui.runButton)
+        self.ui.runButton.clicked.connect(self.runClicked)
         
     def getMacroName(self):
         return self.__name
@@ -394,8 +507,8 @@ class MacroForm(Qt.QWidget):
     def _updateArguments(self):
         layout = self.layout()
         # remove the run button first
-        layout.takeAt(layout.indexOf(self.runButton))
-        self.runButton.setParent(None)
+        layout.takeAt(layout.indexOf(self.ui.runButton))
+        self.ui.runButton.setParent(None)
         # remove all old arguments
         self.__argumentWidgets = argw = []
         while layout.count():
@@ -409,7 +522,7 @@ class MacroForm(Qt.QWidget):
             layout.addRow(label, field)
             argw.append((argument, label, field))
         # add back the run button
-        layout.addRow(self.runButton)
+        layout.addRow(self.ui.runButton)
 
     def getWidgetArguments(self):
         """sequence of (argument, label widget, field widget)"""
@@ -446,13 +559,13 @@ class MacroForm(Qt.QWidget):
         self.setArguments(())
 
     arguments = Qt.Property("QStringList", getArgumentsStr, setArguments,
-                            resetArguments)
+                            resetArguments, doc=_ARG_DOC)
 
     def getRunButtonVisible(self):
-        return self.runButton.isVisible()
+        return self.ui.runButton.isVisible()
 
     def setRunButtonVisible(self, visible):
-        self.runButton.setVisible(visible)
+        self.ui.runButton.setVisible(visible)
 
     def resetRunButtonVisible(self):
         self.setRunButtonVisible(True)
@@ -463,9 +576,15 @@ class MacroForm(Qt.QWidget):
     def getArgumentValueList(self):
         result = []
         for argument, _, fieldWidget in self.getWidgetArguments():
-            value = _getWidgetValue(argument, fieldWidget)
+            value = _getWidgetValue(fieldWidget)
             result.append(value)
         return result
+
+    def getCommandLineList(self):
+        return [self.macroName] + self.getArgumentValueList()
+
+    def getCommandLine(self):
+        return " ".join(map(str, self.getCommandLineList()))
         
     @classmethod
     def getQtDesignerPluginInfo(cls):
@@ -491,7 +610,7 @@ def main():
     panel1.setTitleIcon(getThemeIcon("applications-system"))
     layout = panel1.content().layout()
     layout.setMargin(3)
-    w1 = AscanWidget()
+    w1 = AScanWidget()
     layout.addWidget(w1)
     windowLayout.addWidget(panel1)
 
@@ -500,7 +619,8 @@ def main():
     panel2.setTitleIcon(getThemeIcon("applications-system"))
     layout = panel2.content().layout()
     layout.setMargin(3)    
-    w2 = ANscanWidget()
+    w2 = ANScanWidget()
+    layout.addWidget(w2)
     windowLayout.addWidget(panel2)
     
     nspin = Qt.QSpinBox()
