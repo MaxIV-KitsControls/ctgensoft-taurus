@@ -30,53 +30,52 @@ __all__ = ["TaurusCommandPushButton"]
 __docformat__ = 'restructuredtext'
 
 from taurus.external.qt import Qt
-from taurus.qt.qtgui.button.taurusbasebutton import TaurusBaseCommandWidget            
+from taurus.qt.qtgui.base import TaurusBaseCommandWidget
 
 
 class TaurusCommandPushButton(Qt.QPushButton, TaurusBaseCommandWidget):
     """
-    This class provides a tool button that executes a tango command on its device.
+    This class provides a tool button that executes a tango command
+    on its device.
     
     Code examples::
         from taurus.qt.qtgui.button import TaurusCommandPushButton
         from taurus.qt.qtgui.resource import getThemeIcon
     
-        # a button that executes the "DevVoid" command for the 'sys/tg_test/1'
+        # a button that executes the 'DevVoid' command for the 'sys/tg_test/1'
         # device in an asynchronous way
         button =  TaurusCommandPushButton()
         button.setModel('sys/tg_test/1')
-        button.setCommand("DevVoid")
-        button.setIcon(getThemeIcon("folder-open")
+        button.setCommand('DevVoid')
+        button.setIcon(getThemeIcon('folder-open')
 
-        # a button that executes the "DevString" command for the 'sys/tg_test/1'
+        # a button that executes the 'DevString' command for the 'sys/tg_test/1'
         # device in an asynchronous way with one parameter.
         # The command returns a string. A slot is created to be called when the
         # command termintes with the result.
         # The default text (the command name) is overwritten by a custom string
         button = TaurusCommandPushButton()
         button.setModel('sys/tg_test/1')
-        button.setCommand("DevString")
-        button.setArguments(["something"])
-        button.setCustomText("Go!")
+        button.setCommand('DevString')
+        button.setArguments(['something'])
+        button.setCustomText('Go!')
 
         def result(value, error):
-            print "DevString command finished with result={0} and error={1}".format(value, error)
+            print 'DevString command finished with result={0} and error={1}'.format(value, error)
 
         button.commandFinished.connect(result)
-    
     """
 
     commandFinished = Qt.Signal(object, bool)
     
     def __init__(self, parent=None, designMode=False):
         Qt.QPushButton.__init__(self, parent)
-        TaurusBaseCommandWidget.__init__(self, designMode=designMode)
+        name = self.__class__.__name__
+        TaurusBaseCommandWidget.__init__(self, name,
+                                         designMode=designMode)
         self.clicked.connect(self.executeCommand)
         
-        
-    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    #                      Qt Properties                        #
-    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    # Qt Properties
 
     asynchronous = Qt.Property(bool, TaurusBaseCommandWidget.getAsynchronous,
                                TaurusBaseCommandWidget.setAsynchronous,
@@ -109,6 +108,14 @@ class TaurusCommandPushButton(Qt.QPushButton, TaurusBaseCommandWidget):
                              TaurusBaseCommandWidget.setCustomText,
                              TaurusBaseCommandWidget.resetCustomText)
 
+    @classmethod
+    def getQtDesignerPluginInfo(cls):
+        info = TaurusBaseCommandWidget.getQtDesignerPluginInfo()
+        info["group"] = "Taurus Buttons"
+        info["icon"] = ":/designer/pushbutton.png"
+        info["module"] = "taurus.qt.qtgui.button"
+        return info
+
 
 def main():
     import sys
@@ -140,7 +147,7 @@ def main():
     layout.addWidget(result_widget)
 
     def result_callback(value, error):
-        result_widget.appendPlainText("Result {0}, error={1}".format(value, error))
+        result_widget.appendPlainText("Result: {0}, error={1}".format(value, error))
     push_button_1.commandFinished.connect(result_callback)
     push_button_2.commandFinished.connect(result_callback)
 

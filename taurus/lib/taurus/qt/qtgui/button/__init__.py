@@ -29,6 +29,5 @@ __docformat__ = 'restructuredtext'
 
 from .qbuttonbox import *
 from .taurusbutton import *
-from .taurusbasebutton import *
 from .tauruspushbutton import *
 from .taurustoolbutton import *
