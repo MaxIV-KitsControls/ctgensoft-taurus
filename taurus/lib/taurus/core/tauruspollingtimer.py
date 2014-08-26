@@ -67,6 +67,8 @@ class TaurusPollingTimer(Logger):
                     False otherwise
         """
         attr_dict = self.dev_dict.get(attribute.getParentObj())
+        if attr_dict is None:
+            return False
         return attribute.getSimpleName() in attr_dict
 
     def getAttributeCount(self):
