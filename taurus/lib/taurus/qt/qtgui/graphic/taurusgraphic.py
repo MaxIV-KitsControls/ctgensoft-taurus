@@ -875,6 +875,7 @@ class TaurusGraphicsItem(TaurusBaseComponent):
         #self.debug('TaurusGraphicsItem(%s,%s)' % (name,parent))
         self.ignoreRepaint = False
         self.setName(name)
+        self._showQuality = False
         self._currFgBrush = None
         self._currBgBrush = None
         self._currText = None
