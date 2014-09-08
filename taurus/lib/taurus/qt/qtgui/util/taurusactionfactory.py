@@ -34,8 +34,6 @@ from taurus.core.util.singleton import Singleton
 from taurus.external.qt import Qt
 from taurus.qt.qtgui.resource import getThemeIcon
 
-import taurusaction
-
 
 class ActionFactory(Singleton, Logger):
     """A Singleton class designed to provide Action related objects."""
@@ -49,12 +47,17 @@ class ActionFactory(Singleton, Logger):
         self.call__init__(Logger, 'ActionFactory')
         self.actions = self.__getActions()
         self.menus = self.__getMenus()
+
+    @property
+    def __taurusaction(self):
+        import taurusaction
+        return taurusaction
     
     def __getClasses(self, super_class):
         ret = {}
         klass_type = type(super_class)
-        for name in dir(taurusaction):
-            klass = getattr(taurusaction, name)
+        for name in dir(self.__taurusaction):
+            klass = getattr(self.__taurusaction, name)
             if klass == super_class:
                 continue
             if (type(klass) == klass_type and issubclass(klass, super_class)):
@@ -63,11 +66,11 @@ class ActionFactory(Singleton, Logger):
     
     def __getActions(self):
         """Calculates the map of existing action classes"""
-        return self.__getClasses(taurusaction.TaurusAction)
+        return self.__getClasses(self.__taurusaction.TaurusAction)
 
     def __getMenus(self):
-        """Calculates the map of existing menu classes""" 
-        return self.__getClasses(taurusaction.TaurusMenu)
+        """Calculates the map of existing menu classes"""
+        return self.__getClasses(self.__taurusaction.TaurusMenu)
 
     def getActions(self):
         return self.actions
@@ -115,7 +118,7 @@ class ActionFactory(Singleton, Logger):
                 return None
             menu = klass(widget)
         else:
-            menu = taurusaction.TaurusMenu(widget)
+            menu = self.__taurusaction.TaurusMenu(widget)
             menu.buildFromXML(m_node)
         return menu
     
