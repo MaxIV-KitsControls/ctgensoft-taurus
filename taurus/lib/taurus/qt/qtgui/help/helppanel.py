@@ -26,7 +26,27 @@
 from taurus.external.qt import Qt
 from taurus.external.qt import QtHelp
 
-from .helpbrowser import HelpBrowser
+
+class _HelpBrowser(Qt.QTextBrowser):
+
+    def __init__(self, help_engine=None, parent=None):
+        Qt.QTextBrowser.__init__(self, parent)
+        self.__help_engine = None
+        if help_engine:
+            self.setHelpEngine(help_engine)
+
+    def setHelpEngine(self, help_engine):
+        self.__help_engine = help_engine
+        content_widget = help_engine.contentWidget()
+        index_widget = help_engine.indexWidget()
+        content_widget.linkActivated.connect(self.setSource)
+        index_widget.linkActivated.connect(self.setSource)
+
+    def loadResource(self, type, url):
+        if url.scheme() == "qthelp":
+            if self.__help_engine:
+                return self.__help_engine.fileData(url)
+        return Qt.QTextBrowser.loadResource(self, type, url)
 
 
 class HelpPanel(Qt.QWidget):
@@ -61,11 +81,11 @@ class HelpPanel(Qt.QWidget):
     def setCollectionFile(self, collection_file):
         """
         Displays the help from the specified collection file
-        
+
         :param collection_file: the collection file name (.qhc)
         :type collection_file: str
         """
-        
+
         self.__clear()
         if not collection_file:
             return
@@ -79,11 +99,11 @@ class HelpPanel(Qt.QWidget):
         index_widget = help_engine.indexWidget()
         tab.addTab(content_widget, "Contents")
         tab.addTab(index_widget, "Index")
-        self.__help_browser = HelpBrowser(help_engine, self)
+        self.__help_browser = _HelpBrowser(help_engine, self)
         splitter = Qt.QSplitter(Qt.Qt.Horizontal)
         splitter.insertWidget(0, tab)
         splitter.insertWidget(1, self.__help_browser)
-        layout.addWidget(splitter)        
+        layout.addWidget(splitter)
 
     def getCollectionFile(self):
         """
