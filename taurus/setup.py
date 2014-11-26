@@ -485,8 +485,8 @@ class build(dftbuild):
 
     def get_extra_resource_package_data(self):
         data = []
-        import PyQt4.Qt
-        if self.with_tango_icons or not hasattr(PyQt4.Qt.QIcon, "fromTheme"):
+        import PyQt4.QtGui
+        if self.with_tango_icons or not hasattr(PyQt4.QtGui.QIcon, "fromTheme"):
             tango_icons_dir = abspath('lib', 'taurus', 'qt', 'qtgui', 'resource',
                                       'tango-icons')
             for tango_icon_item in os.listdir(tango_icons_dir):
