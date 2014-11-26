@@ -27,7 +27,9 @@
 """This module provides the set of base classes from which the Qt taurus widgets
 should inherit to be considered valid taurus widgets."""
 
-__all__ = ["TaurusBaseComponent", "TaurusBaseWidget", "TaurusBaseWritableWidget"]
+__all__ = ["TaurusBaseComponent", "TaurusBaseWidget",
+           "TaurusBaseWritableWidget",
+           "TaurusBaseCommandComponent", "TaurusBaseCommandWidget"]
 
 __docformat__ = 'restructuredtext'
 
@@ -47,8 +49,8 @@ from taurus.core.taurusconfiguration import (TaurusConfiguration,
 from taurus.core.tauruslistener import TaurusListener, TaurusExceptionListener
 from taurus.core.taurusoperation import WriteAttrOperation
 from taurus.qt.qtcore.configuration import BaseConfigurableClass
+from taurus.qt.qtcore.command import CommandMixin
 from taurus.qt.qtcore.mimetypes import TAURUS_ATTR_MIME_TYPE, TAURUS_DEV_MIME_TYPE, TAURUS_MODEL_MIME_TYPE
-from taurus.qt.qtgui.util import ActionFactory
 
 DefaultNoneValue = "-----"
 
@@ -940,6 +942,7 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
         
         :param menuData: (str) an xml representing the popup menu"""
         self.taurusMenuData = str(menuData)
+        from taurus.qt.qtgui.util import ActionFactory
         factory = ActionFactory()
         self.taurusMenu = factory.getNewMenu(self, self.taurusMenuData)
     
@@ -1796,3 +1799,40 @@ class TaurusBaseWritableWidget(TaurusBaseWidget):
         ret = TaurusBaseWidget.getQtDesignerPluginInfo()
         ret['group'] = 'Taurus Input'
         return ret
+
+
+class TaurusCommandMixin(CommandMixin):
+    
+    def executeCommand(self):
+        if self.isDangerous() and not self.getForceDangerousOperations():
+            result = Qt.QMessageBox.question(self,
+                "Potentially dangerous action",
+                "{0}\nProceed?".format(self.getDangerMessage()),
+                Qt.QMessageBox.Ok|Qt.QMessageBox.Cancel,
+                Qt.QMessageBox.Ok)
+            if result != Qt.QMessageBox.Ok:
+                return
+        try:
+            CommandMixin.executeCommand(self)
+        except:
+            from taurus.qt.qtgui.dialog import TaurusMessageBox
+            msgbox = TaurusMessageBox(*sys.exc_info())
+            msgbox.setWindowTitle("Unhandled exception running command")
+            msgbox.exec_()
+
+
+class TaurusBaseCommandComponent(TaurusCommandMixin,
+                                 TaurusBaseComponent):
+
+    def __init__(self, name, parent=None, designMode=False):
+        TaurusCommandMixin.__init__(self)
+        TaurusBaseComponent.__init__(self, name, parent=parent,
+                                     designMode=designMode)
+
+
+class TaurusBaseCommandWidget(TaurusCommandMixin, TaurusBaseWidget):
+
+    def __init__(self, name, parent=None, designMode=False):
+        TaurusCommandMixin.__init__(self)
+        TaurusBaseWidget.__init__(self, name, parent=parent,
+                                  designMode=designMode)

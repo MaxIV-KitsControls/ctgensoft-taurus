@@ -112,6 +112,7 @@ packages = [
 
     'taurus.qt.qtgui',
     'taurus.qt.qtgui.test',
+    'taurus.qt.qtgui.action',
     'taurus.qt.qtgui.application',
     'taurus.qt.qtgui.base',
     'taurus.qt.qtgui.button',
@@ -129,6 +130,7 @@ packages = [
     'taurus.qt.qtgui.graph',
     'taurus.qt.qtgui.graphic',
     'taurus.qt.qtgui.graphic.jdraw',
+    'taurus.qt.qtgui.help',
     'taurus.qt.qtgui.image',
     'taurus.qt.qtgui.input',
     'taurus.qt.qtgui.model',

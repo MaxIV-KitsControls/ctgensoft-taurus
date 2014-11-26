@@ -16,7 +16,7 @@
 ## Taurus is distributed in the hope that it will be useful,
 ## but WITHOUT ANY WARRANTY; without even the implied warranty of
 ## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU Lesser General Public License for more details.
+## GNU Lesser Generalgit status Public License for more details.
 ##
 ## You should have received a copy of the GNU Lesser General Public License
 ## along with Taurus.  If not, see <http://www.gnu.org/licenses/>.
@@ -30,7 +30,7 @@ __all__ = ["TaurusCommandToolButton"]
 __docformat__ = 'restructuredtext'
 
 from taurus.external.qt import Qt
-from taurus.qt.qtgui.button.taurusbasebutton import TaurusBaseCommandWidget
+from taurus.qt.qtgui.base import TaurusBaseCommandWidget
             
     
 class TaurusCommandToolButton(Qt.QToolButton, TaurusBaseCommandWidget):
@@ -69,15 +69,19 @@ class TaurusCommandToolButton(Qt.QToolButton, TaurusBaseCommandWidget):
     
     def __init__(self, parent=None, designMode=False):
         Qt.QToolButton.__init__(self, parent)
-        TaurusBaseCommandWidget.__init__(self, designMode=designMode)
+        name = self.__class__.__name__
+        TaurusBaseCommandWidget.__init__(self, name,
+                                         designMode=designMode)
         self.clicked.connect(self.executeCommand)
-        
+
     @classmethod
     def getQtDesignerPluginInfo(cls):
         info = TaurusBaseCommandWidget.getQtDesignerPluginInfo()
+        info["group"] = "Taurus Buttons"
         info["icon"] = ":/designer/toolbutton.png"
+        info["module"] = "taurus.qt.qtgui.button"
         return info
-        
+    
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     #                      Qt Properties                        #
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -146,7 +150,7 @@ def main():
     layout.addWidget(result_widget)
 
     def result_callback(value, error):
-        result_widget.appendPlainText("Result {0}, error={1}".format(value, error))
+        result_widget.appendPlainText("Result: {0}, error={1}".format(value, error))
     tool_button_1.commandFinished.connect(result_callback)
     tool_button_2.commandFinished.connect(result_callback)
 

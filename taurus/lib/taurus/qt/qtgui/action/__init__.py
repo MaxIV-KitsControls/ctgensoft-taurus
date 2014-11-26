@@ -1,12 +1,11 @@
-#!/usr/bin/env python
-
+# -*- coding: utf-8 -*-
 #############################################################################
 ##
 ## This file is part of Taurus, a Tango User Interface Library
 ## 
 ## http://www.tango-controls.org/static/taurus/latest/doc/html/index.html
 ##
-## Copyright 2011 CELLS / ALBA Synchrotron, Bellaterra, Spain
+## Copyright (c) 2014 European Synchrotron Radiation Facility, Grenoble, France
 ## 
 ## Taurus is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU Lesser General Public License as published by
@@ -23,16 +22,8 @@
 ##
 #############################################################################
 
-"""This package provides a set of taurus wiget utilities like color management, 
-configuration, actions."""
+"""A collection of useful taurus Qt actions"""
 
 __docformat__ = 'restructuredtext'
 
-from .taurusactionfactory import *
-from .taurusaction import *
-from .tauruscolor import *
-from .tauruswidgetfactory import *
-from .taurusscreenshot import *
-from .qdraganddropdebug import *
-from .ui import *
-from .qtdesigner import *
+from .command import *

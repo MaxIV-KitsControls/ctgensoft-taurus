@@ -35,3 +35,10 @@ from .tauruslineedit import *
 from .taurusspinbox import *
 from .tauruswheel import *
 from .choicedlg import *
+
+from .qcontrol import QSizeWidget
+from .qcontrol import QPointWidget
+from .qcontrol import QVector2DWidget, QVector3DWidget, QVector4DWidget
+from .qcontrol import QRectXYWHWidget, QRectX1Y1X2Y2Widget
+from .qcontrol import QRectWidget
+from .qcontrol import QFlipHVWidget
