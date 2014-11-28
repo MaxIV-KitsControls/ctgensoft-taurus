@@ -25,7 +25,7 @@
 """A collection of useful taurus standard Qt actions"""
 
 #
-# To add a new action simply add a new item in the Actions!
+# To add a new action simply add a new item in the StandardAction!
 #
 
 import os
@@ -42,7 +42,7 @@ _AI = namedtuple("StandardActionInfo", ("name", "text", "icon_name",
 
 _KS = Qt.QKeySequence
 
-class Actions(Enum):
+class StandardAction(Enum):
     """Enumeration of standard actions"""
 
     Help = _AI("Help", "&Help", "help-contents", _KS.HelpContents, False, "Help", "Shows {app_name} help")
@@ -150,8 +150,8 @@ def createAction(text, parent=None, icon=None, iconText=None,
 
 def __toActionInfo(action_id):
     if isinstance(action_id, str):
-        action_info = Actions[action_id].value
-    if isinstance(action_id, Actions):
+        action_info = StandardAction[action_id].value
+    if isinstance(action_id, StandardAction):
         action_info = action_id.value
     else:
         action_info = action_id
@@ -164,8 +164,8 @@ def createStandardAction(action_id):
 
     :param action_id:
         action identifier. Can be a string or a member of
-        :class:`Actions`.
-    :type action_id: str or :class:`Actions`
+        :class:`StandardAction`.
+    :type action_id: str or :class:`StandardAction`
     :return: a standard QAction
     :rtype: Qt.QAction
     """
@@ -194,8 +194,8 @@ def getStandardAction(action_id, triggered=None, toggled=None):
 
     :param action_id:
         action identifier. Can be a string or a member of
-        :class:`Actions`.
-    :type action_id: str or :class:`Actions`
+        :class:`StandardAction`.
+    :type action_id: str or :class:`StandardAction`
     :param triggered: register the given callable to the action's
                       triggered signal
     :type triggered: callable
@@ -225,7 +225,7 @@ def onRestart():
     Example usage::
 
         from taurus.external.qt import Qt
-        from taurus.qt.qtgui.action import getStandardAction, Actions
+        from taurus.qt.qtgui.action import getStandardAction, StandardAction
         from taurus.qt.qtgui.action import onRestart
 
         app = Qt.QApplication([])
@@ -235,7 +235,7 @@ def onRestart():
         menuBar = w.menuBar()
         fileMenu = menuBar.addMenu("&File")
 
-        restartAction = getStandardAction(Actions.Restart,
+        restartAction = getStandardAction(StandardAction.Restart,
                                           triggered=onRestart)
 
         toolBar.addAction(restartAction)
@@ -262,7 +262,7 @@ def onFullScreen(window, checked):
         from functools import partial
 
         from taurus.external.qt import Qt
-        from taurus.qt.qtgui.action import getStandardAction, Actions
+        from taurus.qt.qtgui.action import getStandardAction, StandardAction
         from taurus.qt.qtgui.action import onFullScreen
 
         app = Qt.QApplication([])
@@ -272,7 +272,7 @@ def onFullScreen(window, checked):
         menuBar = w.menuBar()
         viewMenu = menuBar.addMenu("&View")
 
-        fsAction = getStandardAction(Actions.FullScreen,
+        fsAction = getStandardAction(StandardAction.FullScreen,
                                      toggled=partial(onFullScreen, w))
 
         toolBar.addAction(fsAction)
@@ -295,7 +295,7 @@ def onAssistant(collection_file_name):
         from functools import partial
 
         from taurus.external.qt import Qt
-        from taurus.qt.qtgui.action import getStandardAction, Actions
+        from taurus.qt.qtgui.action import getStandardAction, StandardAction
         from taurus.qt.qtgui.action import onAssistant
 
         app = Qt.QApplication([])
@@ -307,7 +307,7 @@ def onAssistant(collection_file_name):
 
         onAssist = partial(onAssistant, "my_help.qhc")
 
-        helpAction = getStandardAction(Actions.Help,
+        helpAction = getStandardAction(StandardAction.Help,
                                        triggered=onAssist)
 
         toolBar.addAction(helpAction)
@@ -328,7 +328,7 @@ def onAbout(pixmap=None, html=None, text=None, modal=True, parent=None):
     Example usage::
 
         from taurus.external.qt import Qt
-        from taurus.qt.qtgui.action import getStandardAction, Actions
+        from taurus.qt.qtgui.action import getStandardAction, StandardAction
         from taurus.qt.qtgui.action import onAbout
 
         app = Qt.QApplication([])
@@ -338,7 +338,7 @@ def onAbout(pixmap=None, html=None, text=None, modal=True, parent=None):
         menuBar = w.menuBar()
         helpMenu = menuBar.addMenu("&Help")
 
-        aboutAction = getStandardAction(Actions.About,
+        aboutAction = getStandardAction(StandardAction.About,
                                         triggered=onAbout)
 
         toolBar.addAction(aboutAction)
@@ -372,11 +372,11 @@ def main():
     app.setOrganizationDomain("http://www.taurus-scada.org/")
     w = Qt.QMainWindow()
 
-    quitAction = getStandardAction(Actions.Quit)
-    restartAction = getStandardAction(Actions.Restart)
-    fullScreenAction = getStandardAction(Actions.FullScreen)
-    aboutAction = getStandardAction(Actions.About)
-    helpAction = getStandardAction(Actions.Help)
+    quitAction = getStandardAction(StandardAction.Quit)
+    restartAction = getStandardAction(StandardAction.Restart)
+    fullScreenAction = getStandardAction(StandardAction.FullScreen)
+    aboutAction = getStandardAction(StandardAction.About)
+    helpAction = getStandardAction(StandardAction.Help)
 
     quitAction.triggered.connect(w.close)
     restartAction.triggered.connect(onRestart)
