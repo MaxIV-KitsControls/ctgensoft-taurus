@@ -26,4 +26,5 @@
 
 __docformat__ = 'restructuredtext'
 
+from .action import *
 from .command import *
