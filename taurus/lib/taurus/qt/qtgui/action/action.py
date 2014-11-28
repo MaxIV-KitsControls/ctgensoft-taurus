@@ -2,21 +2,21 @@
 #############################################################################
 ##
 ## This file is part of Taurus, a Tango User Interface Library
-## 
+##
 ## http://www.tango-controls.org/static/taurus/latest/doc/html/index.html
 ##
 ## Copyright (c) 2014 European Synchrotron Radiation Facility, Grenoble, France
-## 
+##
 ## Taurus is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU Lesser General Public License as published by
 ## the Free Software Foundation, either version 3 of the License, or
 ## (at your option) any later version.
-## 
+##
 ## Taurus is distributed in the hope that it will be useful,
 ## but WITHOUT ANY WARRANTY; without even the implied warranty of
 ## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ## GNU Lesser General Public License for more details.
-## 
+##
 ## You should have received a copy of the GNU Lesser General Public License
 ## along with Taurus.  If not, see <http://www.gnu.org/licenses/>.
 ##
@@ -44,7 +44,7 @@ _KS = Qt.QKeySequence
 
 class Actions(Enum):
     """Enumeration of standard actions"""
-    
+
     Help = _AI("Help", "&Help", "help-contents", _KS.HelpContents, False, "Help", "Shows {app_name} help")
     About = _AI("About", "&About", "help-about", "", False, "About...", "Shows {app_name} about information")
     Quit = _AI("Quit", "&Quit", "application-exit", _KS.Quit, False, "Quit", "Quits {app_name}")
@@ -167,18 +167,20 @@ def createStandardAction(action_id):
         :class:`Actions`.
     :type action_id: str or :class:`Actions`
     :return: a standard QAction
-    :rtype: Qt.QAction    
+    :rtype: Qt.QAction
     """
-    action_info = __toActionInfo(action_id)    
+    action_info = __toActionInfo(action_id)
     if action_info.checkable:
         icon = __createToggleIcon(*map(getIcon, action_info.icon_name))
     else:
         icon = getIcon(action_info.icon_name)
-    parent = Qt.QApplication.instance()
-    return createAction(action_info.text, parent=parent,
+    app = Qt.QApplication.instance()
+    app_name = app.applicationName()
+    toolTip = action_info.toolTip.format(app_name=app_name)
+    statusTip = action_info.statusTip.format(app_name=app_name)
+    return createAction(action_info.text, parent=app,
                         icon=icon, iconText=action_info.name,
-                        toolTip=action_info.toolTip,
-                        statusTip=action_info.statusTip,
+                        toolTip=toolTip, statusTip=statusTip,
                         toggled=action_info.checkable,
                         shortcut=action_info.shortcut,
                         shortcutContext=Qt.Qt.ApplicationShortcut)
@@ -186,10 +188,10 @@ def createStandardAction(action_id):
 
 def getStandardAction(action_id, triggered=None, toggled=None):
     """
-    Returns the standard action given by the action_id. 
+    Returns the standard action given by the action_id.
     Subsequence calls with the same action_id will return the same
     instance of QAction.
-    
+
     :param action_id:
         action identifier. Can be a string or a member of
         :class:`Actions`.
@@ -221,11 +223,11 @@ def onRestart():
     """
     Helper function to be used as a slot for the Restart action.
     Example usage::
-    
+
         from taurus.external.qt import Qt
         from taurus.qt.qtgui.action import getStandardAction, Actions
         from taurus.qt.qtgui.action import onRestart
-        
+
         app = Qt.QApplication([])
         w = Qt.QMainWindow()
 
@@ -238,7 +240,7 @@ def onRestart():
 
         toolBar.addAction(restartAction)
         fileMenu.addAction(restartAction)
-        
+
         w.show()
         app.exec_()
     """
@@ -258,11 +260,11 @@ def onFullScreen(window, checked):
     Example usage::
 
         from functools import partial
-        
+
         from taurus.external.qt import Qt
         from taurus.qt.qtgui.action import getStandardAction, Actions
         from taurus.qt.qtgui.action import onFullScreen
-        
+
         app = Qt.QApplication([])
         w = Qt.QMainWindow()
 
@@ -275,7 +277,7 @@ def onFullScreen(window, checked):
 
         toolBar.addAction(fsAction)
         viewMenu.addAction(fsAction)
-        
+
         w.show()
         app.exec_()
     """
@@ -291,11 +293,11 @@ def onAssistant(collection_file_name):
     Example usage::
 
         from functools import partial
-    
+
         from taurus.external.qt import Qt
         from taurus.qt.qtgui.action import getStandardAction, Actions
         from taurus.qt.qtgui.action import onAssistant
-        
+
         app = Qt.QApplication([])
         w = Qt.QMainWindow()
 
@@ -310,7 +312,7 @@ def onAssistant(collection_file_name):
 
         toolBar.addAction(helpAction)
         helpMenu.addAction(helpAction)
-        
+
         w.show()
         app.exec_()
     """
@@ -324,11 +326,11 @@ def onAbout(pixmap=None, html=None, text=None, modal=True, parent=None):
     """
     Helper function to be used as a slot for the About action.
     Example usage::
-    
+
         from taurus.external.qt import Qt
         from taurus.qt.qtgui.action import getStandardAction, Actions
         from taurus.qt.qtgui.action import onAbout
-        
+
         app = Qt.QApplication([])
         w = Qt.QMainWindow()
 
@@ -341,7 +343,7 @@ def onAbout(pixmap=None, html=None, text=None, modal=True, parent=None):
 
         toolBar.addAction(aboutAction)
         aboutMenu.addAction(aboutAction)
-        
+
         w.show()
         app.exec_()
     """
@@ -362,8 +364,12 @@ def onAbout(pixmap=None, html=None, text=None, modal=True, parent=None):
 
 def main():
     from functools import partial
-    
+
     app = Qt.QApplication([])
+    app.setApplicationName("TaurusActionDemo")
+    app.setApplicationVersion("1.0")
+    app.setOrganizationName("Taurus community")
+    app.setOrganizationDomain("http://www.taurus-scada.org/")
     w = Qt.QMainWindow()
 
     quitAction = getStandardAction(Actions.Quit)
@@ -377,9 +383,10 @@ def main():
     fullScreenAction.toggled.connect(partial(onFullScreen, w))
     aboutAction.triggered.connect(onAbout)
 
+    statusBar = w.statusBar()
     menuBar = w.menuBar()
     standardToolBar = w.addToolBar("Standard")
-    
+
     fileMenu = menuBar.addMenu("&File")
     fileMenu.addSeparator()
     fileMenu.addAction(restartAction)
@@ -394,14 +401,14 @@ def main():
     helpMenu.addAction(helpAction)
     helpMenu.addSeparator()
     helpMenu.addAction(aboutAction)
-    
+
     standardToolBar.addAction(fullScreenAction)
     standardToolBar.addSeparator()
     standardToolBar.addAction(aboutAction)
     standardToolBar.addAction(helpAction)
     standardToolBar.addSeparator()
     standardToolBar.addAction(restartAction)
-    standardToolBar.addAction(quitAction)    
+    standardToolBar.addAction(quitAction)
 
     w.show()
     app.exec_()
