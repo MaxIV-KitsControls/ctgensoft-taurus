@@ -340,7 +340,7 @@ class QBaseWidget(Qt.QWidget, BaseWidgetMixin):
 
     ObjClass = None
 
-    def __init__(self, obj=None, units=None, parent=None):
+    def __init__(self, parent=None, obj=None, units=None):
         Qt.QWidget.__init__(self, parent)
         if obj is None:
             obj = self.ObjClass(parent=self, units=units)
@@ -391,7 +391,7 @@ class QRectWidget(Qt.QWidget):
 
     viewChanged = Qt.Signal(int)
 
-    def __init__(self, obj=None, units=None, parent=None):
+    def __init__(self, parent=None, obj=None, units=None):
         Qt.QWidget.__init__(self, parent)
         if obj is None:
             obj = Rectangle(parent=self, units=units)
@@ -452,7 +452,7 @@ class QSizeWidget(QBaseWidget):
         ('w', dict(fget='width', fset="setWidth", label='W')),
         ('h', dict(fget='height', fset="setHeight", label='H'))))
 
-    def __init__(self, obj=None, units=None, parent=None):
+    def __init__(self, parent=None, obj=None, units=None):
         QBaseWidget.__init__(self, obj=obj, units=units, parent=parent)
         #for field_widget in self.getFieldsWidgets().values():
         #    field_widget['value'].setMinimum(0)
