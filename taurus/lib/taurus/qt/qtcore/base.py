@@ -82,7 +82,7 @@ class BaseObject(Qt.QObject):
         bs = self.blockSignals(True)
         try:
             for k, v in kwargs.items():
-                getattr(obj, "set" + k.capitalize())(v)
+                getattr(obj, "set" + k)(v)
         finally:
             self.blockSignals(bs)
         self.changed.emit(obj)
