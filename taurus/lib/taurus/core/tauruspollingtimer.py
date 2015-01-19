@@ -29,6 +29,8 @@ __all__ = ["TaurusPollingTimer"]
 
 __docformat__ = "restructuredtext"
 
+import time
+
 from .util.log import Logger
 from .util.containers import CaselessDict
 from .util.timer import Timer
@@ -128,9 +130,14 @@ class TaurusPollingTimer(Logger):
             except Exception as e:
                 self.error("poll_asynch error")
                 self.debug("Details:", exc_info=1)
+        period = self.timer.period
         for dev, (attrs, req_id) in req_ids.items():
             try:
+		start = time.time()
                 dev.poll(attrs, req_id=req_id)
+                dt = time.time() - start
+                if dt > period:
+                    self.info("%s(%s) took too much to answer (>%s)", dev, attrs.keys(), period)
             except Exception as e:
                 self.error("poll_reply error")
 
