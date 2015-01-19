@@ -69,6 +69,10 @@ The way to get access to the Tango factory is::
 
 __docformat__ = "restructuredtext"
 
+import PyTango
+PyTango.ApiUtil.instance().set_asynch_cb_sub_model(PyTango.cb_sub_model.PUSH_CALLBACK)
+del PyTango
+
 from enums import *
 from tangodatabase import *
 from tangodevice import *
