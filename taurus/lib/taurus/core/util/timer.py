@@ -57,7 +57,11 @@ class Timer(Logger):
         self.__start_nb = 0
         self.__thread = None
         self.__strict_timing = strict_timing
-        
+
+    @property
+    def period(self):
+        return self.__interval        
+
     def start(self):
         """ Start Timer Object """
         self.__lock.acquire()
@@ -92,8 +96,8 @@ class Timer(Logger):
                 curr_time = time.time()
                 nap = max(0, next_time - curr_time)
                 if curr_time > next_time:
-                    self.warning("loop function took more than loop interval (%ss)",
-                                 self.__interval)
+                    self.debug("loop function took more than loop interval (%ss)",
+                               self.__interval)
             next_time += self.__interval
             time.sleep(nap)
         self.__alive = False
