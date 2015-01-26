@@ -58,14 +58,18 @@ class PositionSpinBox(TaurusValueSpinBox):
 
 class PositionLabel(TaurusLabel):
 
+    def __init__(self, *args, **kwargs):
+        TaurusLabel.__init__(self, *args, **kwargs)
+        self.setAutoTrim(False)
+
     def handleEvent(self, evt_src, evt_type, evt_value):
         TaurusLabel.handleEvent(self, evt_src, evt_type, evt_value)
         if evt_type == TaurusEventType.Config:
             units = self.getModelObj().getUnit()
             if units not in (None, "No unit"):
                 self.setSuffixText(" " + units)
-    
-    
+
+
 class ValueLabel(object):
     """
     An object representing a pair value and it's label (display representation).
