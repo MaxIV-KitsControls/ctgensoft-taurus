@@ -178,7 +178,7 @@ class AboutDialog(Qt.QDialog):
         :return: the current dialog pixmap
         :rtype: Qt.QPixmap
         """                
-        pixmap = self.logo_widget.pixmap()
+        pixmap = self.logo_widget.pixmap
         if pixmap is None:
             pixmap = Qt.QPixmap()
         return pixmap
