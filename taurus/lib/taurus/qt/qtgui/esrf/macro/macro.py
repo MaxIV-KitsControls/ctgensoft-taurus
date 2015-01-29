@@ -21,7 +21,7 @@ __docformat__ = 'restructuredtext'
 import json
 
 from taurus.external.qt import Qt
-from taurus.qt.qtgui.resource import getIcon
+from taurus.qt.qtgui.resource import getIcon, getThemeIcon
 
 
 class _UI(object):
@@ -39,8 +39,9 @@ ascan - one-motor scan
 
 class AScanWidget(Qt.QWidget):
     """Single axis, absolute scan widget"""
-    
+
     runClicked = Qt.Signal(bool)
+    stopClicked = Qt.Signal(bool)
 
     _DefaultOrientation = Qt.Qt.Horizontal
 
@@ -55,9 +56,9 @@ class AScanWidget(Qt.QWidget):
         self.ui.startSpinBox = Qt.QDoubleSpinBox(self)
         self.ui.startSpinBox.setToolTip("start position")
         self.ui.stopSpinBox = Qt.QDoubleSpinBox(self)
-        self.ui.stopSpinBox.setToolTip("end position")        
+        self.ui.stopSpinBox.setToolTip("end position")
         self.ui.intervalsSpinBox = Qt.QSpinBox(self)
-        self.ui.intervalsSpinBox.setToolTip("number of intervals")        
+        self.ui.intervalsSpinBox.setToolTip("number of intervals")
         self.ui.intervalsSpinBox.setMinimum(0)
         self.ui.intervalsSpinBox.setMaximum(2**31-1)
         self.ui.timeSpinBox = Qt.QDoubleSpinBox(self)
@@ -66,8 +67,16 @@ class AScanWidget(Qt.QWidget):
         self.ui.timeSpinBox.setMinimum(float('-inf'))
         self.ui.timeSpinBox.setMaximum(float('+inf'))
         self.ui.timeSpinBox.setSuffix(" s")
-        icon = getIcon(":/actions/media_playback_start.svg")
-        self.ui.runButton = Qt.QPushButton(icon, "")
+        icon = getThemeIcon("media-playback-start")
+        self.ui.runButton = Qt.QToolButton()
+        self.ui.runButton.setIcon(icon)
+        self.ui.runButton.setToolTip("Start ascan")
+        self.ui.runButton.setStatusTip("Press to start ascan macro")
+        icon = getThemeIcon("media-playback-stop")
+        self.ui.stopButton = Qt.QToolButton()
+        self.ui.stopButton.setIcon(icon)
+        self.ui.stopButton.setToolTip("Stop current ascan")
+        self.ui.stopButton.setStatusTip("Press to stop running ascan")
         layout = Qt.QBoxLayout(Qt.QBoxLayout.LeftToRight, self)
         layout.setMargin(0)
         layout.addWidget(self.ui.axisComboBox)
@@ -75,13 +84,15 @@ class AScanWidget(Qt.QWidget):
         layout.addWidget(self.ui.stopSpinBox)
         layout.addWidget(self.ui.intervalsSpinBox)
         layout.addWidget(self.ui.timeSpinBox)
-        layout.addWidget(self.ui.runButton)        
+        layout.addWidget(self.ui.runButton)
+        layout.addWidget(self.ui.stopButton)
 
         self.ui.axisComboBox.currentIndexChanged[int].connect(self.__onAxisChanged)
         self.ui.runButton.clicked.connect(self.runClicked)
+        self.ui.stopButton.clicked.connect(self.stopClicked)
 
         self.setToolTip(_ASCAN_DESC)
-        
+
         self.__updateOrientation()
 
     def __updateOrientation(self):
@@ -134,11 +145,24 @@ class AScanWidget(Qt.QWidget):
     runButtonVisible = Qt.Property(bool, getRunButtonVisible,
                                    setRunButtonVisible, resetRunButtonVisible)
 
+    def getStopButtonVisible(self):
+        return self.ui.stopButton.isVisible()
+
+    def setStopButtonVisible(self, visible):
+        self.ui.stopButton.setVisible(visible)
+
+    def resetStopButtonVisible(self):
+        self.setStopButtonVisible(True)
+
+    stopButtonVisible = Qt.Property(bool, getStopButtonVisible,
+                                    setStopButtonVisible,
+                                    resetStopButtonVisible)
+
     def getArgumentValueList(self):
         ui = self.ui
         widgets = ui.axisComboBox, ui.startSpinBox, ui.stopSpinBox, ui.intervalsSpinBox, ui.timeSpinBox
         return [_getWidgetValue(w) for w in widgets]
-    
+
     def getCommandLineList(self):
         return [self.macroName] + self.getArgumentValueList()
 
@@ -148,12 +172,13 @@ class AScanWidget(Qt.QWidget):
 
 class ANScanWidget(Qt.QWidget):
     """Multiple axis, absolute scan widget"""
-    
+
     runClicked = Qt.Signal(bool)
+    stopClicked = Qt.Signal(bool)
     dimensionsChanged = Qt.Signal(int)
-    
+
     _DefaultDimensions = 1
-    
+
     def __init__(self, parent=None, designMode=False):
         Qt.QWidget.__init__(self, parent)
         self.__old_dimensions = 0
@@ -161,23 +186,33 @@ class ANScanWidget(Qt.QWidget):
         self.ui = _UI()
         layout = Qt.QGridLayout(self)
         self.ui.intervalsSpinBox = Qt.QSpinBox(self)
-        self.ui.intervalsSpinBox.setToolTip("number of intervals")        
+        self.ui.intervalsSpinBox.setToolTip("number of intervals")
         self.ui.intervalsSpinBox.setMinimum(0)
         self.ui.intervalsSpinBox.setMaximum(2**31-1)
         self.ui.timeSpinBox = Qt.QDoubleSpinBox(self)
         self.ui.timeSpinBox.setToolTip("If positive, count time in seconds\n"
-                                       "If negative, monitor counts")        
+                                       "If negative, monitor counts")
         self.ui.timeSpinBox.setMinimum(float('-inf'))
         self.ui.timeSpinBox.setMaximum(float('+inf'))
         self.ui.timeSpinBox.setSuffix(" s")
-        icon = getIcon(":/actions/media_playback_start.svg")
-        self.ui.runButton = Qt.QPushButton(icon, "")
+        icon = getThemeIcon("media-playback-start")
+        self.ui.runButton = Qt.QToolButton()
+        self.ui.runButton.setIcon(icon)
+        self.ui.runButton.setToolTip("Start aNscan")
+        self.ui.runButton.setStatusTip("Press to start aNscan macro")
         self.ui.runButton.clicked.connect(self.runClicked)
-        
+        icon = getThemeIcon("media-playback-stop")
+        self.ui.stopButton = Qt.QToolButton()
+        self.ui.stopButton.setIcon(icon)
+        self.ui.stopButton.setToolTip("Stop current aNscan")
+        self.ui.stopButton.setStatusTip("Press to stop running aNscan")
+        self.ui.stopButton.clicked.connect(self.stopClicked)
+
         layout.setMargin(0)
         layout.addWidget(self.ui.intervalsSpinBox, 0, 3)
         layout.addWidget(self.ui.timeSpinBox, 0, 4)
         layout.addWidget(self.ui.runButton, 0, 5)
+        layout.addWidget(self.ui.stopButton, 0, 6)
 
         self.dimensionsChanged.connect(self.__onDimensionsChanged)
         self.setDimensions(self._DefaultDimensions)
@@ -217,10 +252,10 @@ class ANScanWidget(Qt.QWidget):
 
     def getStopWidget(self, dim):
         return self.layout().itemAtPosition(dim, 1).widget()
-            
+
     def getStartWidget(self, dim):
         return self.layout().itemAtPosition(dim, 2).widget()
-                
+
     def getWidgets(self):
         widgets = []
         for dim in range(self.__dimensions):
@@ -230,7 +265,7 @@ class ANScanWidget(Qt.QWidget):
         widgets.append(self.ui.intervalsSpinBox)
         widgets.append(self.ui.timeSpinBox)
         return widgets
-            
+
     def getArgumentValueList(self):
         return [_getWidgetValue(w) for w in self.getWidgets()]
 
@@ -239,7 +274,7 @@ class ANScanWidget(Qt.QWidget):
 
     def getCommandLine(self):
         return " ".join(map(str, self.getCommandLineList()))
-        
+
     @classmethod
     def getQtDesignerPluginInfo(cls):
         return dict(module="taurus.qt.qtgui.esrf.macro",
@@ -256,6 +291,7 @@ class ANScanWidget(Qt.QWidget):
     def getDimensions(self):
         return self.__dimensions
 
+    @Qt.Slot(int)
     def setDimensions(self, dimensions):
         if dimensions == self.__dimensions:
             return
@@ -281,9 +317,23 @@ class ANScanWidget(Qt.QWidget):
     runButtonVisible = Qt.Property(bool, getRunButtonVisible,
                                    setRunButtonVisible, resetRunButtonVisible)
 
+    def getStopButtonVisible(self):
+        return self.ui.stopButton.isVisible()
+
+    def setStopButtonVisible(self, visible):
+        self.ui.stopButton.setVisible(visible)
+
+    def resetStopButtonVisible(self):
+        self.setStopButtonVisible(True)
+
+    stopButtonVisible = Qt.Property(bool, getStopButtonVisible,
+                                    setStopButtonVisible,
+                                    resetStopButtonVisible)
+
+
 class Argument:
     """Object containing argument information"""
-    
+
     def __init__(self, name=None, dtype=None, label=None, unit=None,
                  tooltip=None, statustip=None, icon=None, min_value=None,
                  max_value=None, default_value=None):
@@ -322,7 +372,7 @@ class Argument:
             if item is not None:
                 d[item_name] = item
         return d
-    
+
     DTYPE_WIDGET_MAP = {
         'str': Qt.QLineEdit,
         'int': Qt.QSpinBox,
@@ -347,7 +397,7 @@ class Argument:
         if self.tooltip is not None:
             widget.setToolTip(self.tooltip)
         return widget
-    
+
     def createFieldWidget(self, parent=None):
         dtype = self.dtype
         WidgetClass = self.getFieldWidgetClass()
@@ -386,7 +436,7 @@ class Argument:
             widget.setToolTip(self.tooltip)
         if self.statustip is not None:
             widget.setStatusTip(self.statustip)
-        
+
         return widget
 
     def __str__(self):
@@ -440,7 +490,7 @@ class MacroForm(Qt.QWidget):
 
         from taurus.external.qt import Qt
         from esrf.taurus.qt.qtgui.macro import MacroForm
-    
+
         app = Qt.QApplication([])
 
         widget = MacroForm()
@@ -461,7 +511,7 @@ class MacroForm(Qt.QWidget):
         ]
         widget.setMacroName("zapenergy")
         widget.setArguments(args)
-    
+
         def onRunClicked(self, checked=False):
             args = [w3.macroName] + w3.getArgumentValueList()
             print "run macro: '{0}'".format(" ".join(map(str, args)))
@@ -471,10 +521,11 @@ class MacroForm(Qt.QWidget):
     clicked. It is up to the programmer to connect the runClicked signal to a
     proper slot which handles the action.
     """
-    
+
     runClicked = Qt.Signal(bool)
+    stopClicked = Qt.Signal(bool)
     macroNameChanged = Qt.Signal(str)
-    
+
     def __init__(self, parent=None, designMode=False):
         self.__name = ""
         self.__arguments = []
@@ -484,12 +535,35 @@ class MacroForm(Qt.QWidget):
         layout = Qt.QFormLayout(self)
         layout.setMargin(3)
         layout.setSpacing(3)
-        
-        icon = getIcon(":/actions/media_playback_start.svg")
-        self.ui.runButton = Qt.QPushButton(icon, "")
-        layout.addRow(self.ui.runButton)
+
+        self.ui.buttonPanel = Qt.QWidget()
+        layout.addRow(self.ui.buttonPanel)
+        button_layout = Qt.QHBoxLayout(self.ui.buttonPanel)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.addStretch(1)
+        icon = getThemeIcon("media-playback-start")
+        self.ui.runButton = Qt.QToolButton()
+        self.ui.runButton.setIcon(icon)
+        self.ui.runButton.setToolTip("Start macro")
+        self.ui.runButton.setStatusTip("Press to start macro")
         self.ui.runButton.clicked.connect(self.runClicked)
-        
+        button_layout.addWidget(self.ui.runButton)
+
+        icon = getThemeIcon("media-playback-stop")
+        self.ui.stopButton = Qt.QToolButton()
+        self.ui.stopButton.setIcon(icon)
+        self.ui.stopButton.setToolTip("Stop macro")
+        self.ui.stopButton.setStatusTip("Press to stop macro")
+        self.ui.stopButton.clicked.connect(self.stopClicked)
+        button_layout.addWidget(self.ui.stopButton)
+        self.macroNameChanged.connect(self.__onMacroNameChanged)
+
+    def __onMacroNameChanged(self, name):
+        self.ui.runButton.setToolTip("Start '{0}' macro".format(name))
+        self.ui.runButton.setStatusTip("Press to start '{0}' macro".format(name))
+        self.ui.stopButton.setToolTip("Stop '{0}' macro".format(name))
+        self.ui.stopButton.setStatusTip("Press to stop '{0}' macro".format(name))
+
     def getMacroName(self):
         return self.__name
 
@@ -506,9 +580,10 @@ class MacroForm(Qt.QWidget):
 
     def _updateArguments(self):
         layout = self.layout()
-        # remove the run button first
-        layout.takeAt(layout.indexOf(self.ui.runButton))
-        self.ui.runButton.setParent(None)
+        # remove the run and stop buttons first
+        layout.takeAt(layout.indexOf(self.ui.buttonPanel))
+        self.ui.buttonPanel.setParent(None)
+
         # remove all old arguments
         self.__argumentWidgets = argw = []
         while layout.count():
@@ -521,13 +596,14 @@ class MacroForm(Qt.QWidget):
             field = argument.createFieldWidget()
             layout.addRow(label, field)
             argw.append((argument, label, field))
-        # add back the run button
-        layout.addRow(self.ui.runButton)
+
+        # add back the run and stop buttons
+        layout.addRow(self.ui.buttonPanel)
 
     def getWidgetArguments(self):
         """sequence of (argument, label widget, field widget)"""
         return self.__argumentWidgets
-        
+
     def getArguments(self):
         return self.__arguments
 
@@ -537,7 +613,7 @@ class MacroForm(Qt.QWidget):
     def _parseArgument(self, argument):
         if isinstance(argument, Argument):
             pass
-        elif isinstance(argument, (str, Qt.QString)):
+        elif isinstance(argument, (str, unicode, Qt.QString)):
             argument = str(argument)
             try:
                 argument = Argument(**json.loads(argument))
@@ -546,13 +622,10 @@ class MacroForm(Qt.QWidget):
         elif isinstance(argument, dict):
             argument = Argument(**argument)
         return argument
-    
+
     Qt.Slot("QStringList")
     def setArguments(self, arguments):
-        self.__arguments = args = []
-        for argument in arguments:
-            argument = self._parseArgument(argument)
-            args.append(argument)
+        self.__arguments = [self._parseArgument(arg) for arg in arguments]
         self._updateArguments()
 
     def resetArguments(self):
@@ -573,6 +646,19 @@ class MacroForm(Qt.QWidget):
     runButtonVisible = Qt.Property(bool, getRunButtonVisible,
                                    setRunButtonVisible, resetRunButtonVisible)
 
+    def getStopButtonVisible(self):
+        return self.ui.stopButton.isVisible()
+
+    def setStopButtonVisible(self, visible):
+        self.ui.stopButton.setVisible(visible)
+
+    def resetStopButtonVisible(self):
+        self.setStopButtonVisible(True)
+
+    stopButtonVisible = Qt.Property(bool, getStopButtonVisible,
+                                    setStopButtonVisible,
+                                    resetStopButtonVisible)
+
     def getArgumentValueList(self):
         result = []
         for argument, _, fieldWidget in self.getWidgetArguments():
@@ -585,7 +671,7 @@ class MacroForm(Qt.QWidget):
 
     def getCommandLine(self):
         return " ".join(map(str, self.getCommandLineList()))
-        
+
     @classmethod
     def getQtDesignerPluginInfo(cls):
         return dict(module="taurus.qt.qtgui.esrf.macro",
@@ -599,7 +685,7 @@ def main():
     from taurus.qt.qtgui.resource import getThemeIcon
 
     taurus.setLogLevel(taurus.Debug)
-    
+
     app = Qt.QApplication([])
 
     window = Qt.QWidget()
@@ -618,11 +704,11 @@ def main():
     panel2.setTitle("anscan")
     panel2.setTitleIcon(getThemeIcon("applications-system"))
     layout = panel2.content().layout()
-    layout.setMargin(3)    
+    layout.setMargin(3)
     w2 = ANScanWidget()
     layout.addWidget(w2)
     windowLayout.addWidget(panel2)
-    
+
     nspin = Qt.QSpinBox()
     nspin.valueChanged[int].connect(w2.setDimensions)
     def setTitle(n):
@@ -653,7 +739,7 @@ def main():
         args = [w3.macroName] + w3.getArgumentValueList()
         print "run macro: '{0}'".format(" ".join(map(str, args)))
     w3.runClicked.connect(onRunClicked)
-    
+
     layout.addWidget(w3)
     windowLayout.addWidget(panel3)
 

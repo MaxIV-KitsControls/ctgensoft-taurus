@@ -24,7 +24,9 @@ import functools
 from taurus.core import TaurusEventType
 from taurus.external.qt import Qt
 from taurus.qt.qtgui.base import TaurusBaseWidget
+from taurus.qt.qtgui.display import TaurusLabel
 from taurus.qt.qtgui.dialog import TaurusMessageBox
+from taurus.qt.qtgui.util import UILoadable, QtDesignable
 
 from taurus.qt.qtgui.esrf.macro import MacroForm
 from taurus.qt.qtgui.esrf.macro import AScanWidget, ANScanWidget
@@ -37,9 +39,11 @@ def Specable(klass=None):
         return functools.partial(Specable)
 
     def _onCommandFinished(widget, result, error=False):
+        widget.__last_command_id = None
         widget.ui.runButton.setEnabled(True)
+        widget.ui.stopButton.setEnabled(False)
 
-    def _executeCommand(widget):
+    def _runCommand(widget):
         model = widget.getModelObj()
         if model is None:
             raise ValueError("No executor has been connected")
@@ -47,9 +51,22 @@ def Specable(klass=None):
         command = "ExecuteCmdA"
         args = [widget.getCommandLine()]
         result = model.command(command, args=args, asynch=True,
-                               callback=widget._onWaitReply,
+                               callback=widget._onWaitRunReply,
                                timeout=TWENTY_DAYS)
         widget.ui.runButton.setEnabled(False)
+        widget.ui.stopButton.setEnabled(True)
+        return result
+
+    def _stopCommand(widget):
+        model = widget.getModelObj()
+        if model is None:
+            raise ValueError("No executor has been connected")
+
+        command = "AbortCmd"
+        args = [widget.__last_command_id]
+        result = model.command(command, args=args, asynch=True,
+                               callback=widget._onWaitStopReply,
+                               timeout=TWENTY_DAYS)
         return result
 
     def _onRunClicked(widget, checked=False):
@@ -61,13 +78,22 @@ def Specable(klass=None):
             if result != Qt.QMessageBox.Ok:
                 return
         try:
-            widget._executeCommand()
+            widget._runCommand()
         except:
             msgbox = TaurusMessageBox(*sys.exc_info())
             msgbox.setWindowTitle("Unhandled exception running macro")
             msgbox.exec_()
 
-    def _onWaitReply(widget, result, error=False):
+    def _onStopClicked(widget, checked=False):
+        try:
+            widget._stopCommand()
+        except:
+            msgbox = TaurusMessageBox(*sys.exc_info())
+            msgbox.setWindowTitle("Unhandled exception stopping macro")
+            msgbox.exec_()
+
+    def _onWaitRunReply(widget, result, error=False):
+        widget.__last_command_id = result
         if error:
             widget.setStatusTip("Error executing macro '{0}'".format(widget.macroName))
         else:
@@ -75,46 +101,92 @@ def Specable(klass=None):
             while not model.command("IsReplyArrived", args=[result], asynch=False):
                 time.sleep(0.1)
             result = model.command("GetReply", args=[result], asynch=False)
-        widget.commandFinished.emit(result, error)
+        if hasattr(widget, 'commandFinished'):
+            widget.commandFinished.emit(result, error)
+
+    def _onWaitStopReply(widget, result, error=False):
+        pass
 
     def _motorListChanged(widget, evt_src, evt_type, evt_value):
+        if not hasattr(widget, 'motorListChanged'):
+            return
         if evt_type in (TaurusEventType.Change, TaurusEventType.Periodic):
+            if evt_value.value is None:
+                evt_value.value = []
             motors = [value.split() for value in evt_value.value]
             widget.motorListChanged.emit(motors)
 
-    def _onModelChanged(widget, model_name):
-        model = widget.getModelObj()
-        if model:        
-            motor_list_attr = model.getAttribute("MotorList")
-            motor_list_attr.addListener(widget._motorListChanged)
-
     def getMotors(widget):
         model = widget.getModelObj()
+        mot_list = widget.getModelObj().getAttribute("MotorList").read().value
+        if mot_list is None:
+            mot_list = []
         motors = {}
-        for motor in widget.getModelObj().getAttribute("MotorList").read().value:
+        for motor in mot_list:
             alias, name = motor.split()
             motors[alias] = name
         return motors
-            
+
+    def _counterListChanged(widget, evt_src, evt_type, evt_value):
+        if not hasattr(widget, 'counterListChanged'):
+            return
+        if evt_type in (TaurusEventType.Change, TaurusEventType.Periodic):
+            if evt_value.value is None:
+                evt_value.value = []
+            counters = [value.split() for value in evt_value.value]
+            widget.counterListChanged.emit(counters)
+
+    def getCounters(widget):
+        model = widget.getModelObj()
+        mot_list = widget.getModelObj().getAttribute("CounterList").read().value
+        if ct_list is None:
+            ct_list = []
+        counters = {}
+        for counter in ct_list:
+            alias, name = counter.split()
+            counters[alias] = name
+        return counters
+
+    def _onModelChanged(widget, model_name):
+        model = widget.getModelObj()
+        if model:
+            motor_list_attr = model.getAttribute("MotorList")
+            motor_list_attr.addListener(widget._motorListChanged)
+            counter_list_attr = model.getAttribute("CounterList")
+            counter_list_attr.addListener(widget._counterListChanged)
+
+
     init_original = klass.__init__
     def _init(widget, *args, **kwargs):
+        widget.__last_command_id = None
         init_original(widget, *args, **kwargs)
         Qt.QObject.connect(widget,
                            Qt.SIGNAL(TaurusBaseWidget.ModelChangedSignal),
                            widget._onModelChanged)
-        widget.runClicked.connect(widget._onRunClicked)
-        widget.commandFinished.connect(widget._onCommandFinished)
-        
+        if hasattr(widget, 'runClicked'):
+            widget.runClicked.connect(widget._onRunClicked)
+        if hasattr(widget, 'stopClicked'):
+            widget.stopClicked.connect(widget._onStopClicked)
+        if hasattr(widget, 'commandFinished'):
+            widget.commandFinished.connect(widget._onCommandFinished)
+
     klass._onCommandFinished = _onCommandFinished
-    klass._executeCommand = _executeCommand
+    klass._runCommand = _runCommand
     klass._onRunClicked = _onRunClicked
-    klass._onWaitReply = _onWaitReply
+    klass._onWaitRunReply = _onWaitRunReply
+
+    klass._stopCommand = _stopCommand
+    klass._onStopClicked = _onStopClicked
+    klass._onWaitStopReply = _onWaitStopReply
+
     klass.__init__ = _init
 
     klass._motorListChanged = _motorListChanged
+    klass._counterListChanged = _counterListChanged
     klass._onModelChanged = _onModelChanged
     klass.getMotors = getMotors
-    
+    klass.getCounters = getCounters
+
     return klass
 
 
@@ -123,7 +195,7 @@ class SpecAScanWidget(AScanWidget, TaurusBaseWidget):
 
     commandFinished = Qt.Signal(object, bool)
     motorListChanged = Qt.Signal(object)
-    
+
     def __init__(self, parent=None, designMode=False):
         name = self.__class__.__name__
         AScanWidget.__init__(self, parent=parent, designMode=designMode)
@@ -144,12 +216,12 @@ class SpecAScanWidget(AScanWidget, TaurusBaseWidget):
             if 'unit' in props:
                 units = " " + props['unit'][0]
         self.ui.startSpinBox.setMinimum(minv)
-        self.ui.startSpinBox.setMaximum(maxv)        
+        self.ui.startSpinBox.setMaximum(maxv)
         self.ui.startSpinBox.setSuffix(units)
         self.ui.stopSpinBox.setMinimum(minv)
-        self.ui.stopSpinBox.setMaximum(maxv)        
-        self.ui.stopSpinBox.setSuffix(units)            
-        
+        self.ui.stopSpinBox.setMaximum(maxv)
+        self.ui.stopSpinBox.setSuffix(units)
+
     def __onMotorListChanged(self, motors):
         axisComboBox = self.ui.axisComboBox
         current_motor = axisComboBox.currentText()
@@ -158,7 +230,7 @@ class SpecAScanWidget(AScanWidget, TaurusBaseWidget):
             axisComboBox.addItem(motor_alias, motor_alias)
         if current_motor:
             axisComboBox.setCurrentIndex(axisComboBox.findText(current_motor))
-        
+
     @classmethod
     def getQtDesignerPluginInfo(cls):
         return dict(module="taurus.qt.qtgui.esrf.spec",
@@ -167,14 +239,14 @@ class SpecAScanWidget(AScanWidget, TaurusBaseWidget):
 
     model = Qt.Property(str, TaurusBaseWidget.getModel,
                         TaurusBaseWidget.setModel, TaurusBaseWidget.resetModel)
-    
+
 
 @Specable
 class SpecANScanWidget(ANScanWidget, TaurusBaseWidget):
 
     commandFinished = Qt.Signal(object, bool)
     motorListChanged = Qt.Signal(object)
-    
+
     def __init__(self, parent=None, designMode=False):
         name = self.__class__.__name__
         ANScanWidget.__init__(self, parent=parent, designMode=designMode)
@@ -187,7 +259,7 @@ class SpecANScanWidget(ANScanWidget, TaurusBaseWidget):
         for dim in range(n):
             motorWidget = self.getMotorWidget(dim)
             motorWidget.currentIndexChanged.connect(self.__onMotorSelectionChanged)
-        
+
     def __onMotorSelectionChanged(self, index):
         self.__updateMotorWidgets()
 
@@ -209,12 +281,12 @@ class SpecANScanWidget(ANScanWidget, TaurusBaseWidget):
                 if 'unit' in props:
                     units = " " + props['unit'][0]
             startWidget.setMinimum(minv)
-            startWidget.setMaximum(maxv)            
+            startWidget.setMaximum(maxv)
             startWidget.setSuffix(units)
             stopWidget.setMinimum(minv)
-            stopWidget.setMaximum(maxv)            
-            stopWidget.setSuffix(units)            
-        
+            stopWidget.setMaximum(maxv)
+            stopWidget.setSuffix(units)
+
     def __onMotorListChanged(self, motors):
         layout = self.layout()
         for dim in range(self.dimensions):
@@ -225,13 +297,13 @@ class SpecANScanWidget(ANScanWidget, TaurusBaseWidget):
                 axisComboBox.addItem(motor_alias, motor_alias)
             if current_motor:
                 axisComboBox.setCurrentIndex(axisComboBox.findText(current_motor))
-        
+
     @classmethod
     def getQtDesignerPluginInfo(cls):
         return dict(module="taurus.qt.qtgui.esrf.spec",
                     icon=":designer/macroserver.png",
                     group="ESRF Spec Widgets")
-    
+
     model = Qt.Property(str, TaurusBaseWidget.getModel,
                         TaurusBaseWidget.setModel, TaurusBaseWidget.resetModel)
 
@@ -241,7 +313,7 @@ class SpecMacroForm(MacroForm, TaurusBaseWidget):
 
     commandFinished = Qt.Signal(object, bool)
     motorListChanged = Qt.Signal(object)
-    
+
     def __init__(self, parent=None, designMode=False):
         name = self.__class__.__name__
         MacroForm.__init__(self, parent=parent, designMode=designMode)
@@ -268,14 +340,144 @@ class SpecMacroForm(MacroForm, TaurusBaseWidget):
             evt_value = model.getAttribute("MotorList").read()
             motors = [value.split() for value in evt_value.value]
             self.__fillMotorArgumentWidgets(motors)
-        
+
     @classmethod
     def getQtDesignerPluginInfo(cls):
         return dict(module="taurus.qt.qtgui.esrf.spec",
                     icon=":designer/macroserver.png",
                     group="ESRF Spec Widgets")
 
-    
+
+class SpecCounterMonitorWidget(Qt.QWidget, TaurusBaseWidget):
+
+    def __init__(self, parent=None, designMode=False):
+        name = self.__class__.__name__
+        Qt.QWidget.__init__(self, parent=parent)
+        TaurusBaseWidget.__init__(self, name, designMode=designMode)
+        layout = Qt.QHBoxLayout(self)
+
+    def __update(self):
+        counter_list = self.getModelObj().read().value or []
+        layout = self.layout()
+        while layout.count():
+            layout.takeAt(0)
+
+        for i, counter in enumerate(counter_list):
+            mne, dev_name = counter.split()
+            label = TaurusLabel()
+            label.setAutoTrim(False)
+            label.setPrefixText(mne + ": ")
+            label.setModel(dev_name + "/value")
+            layout.addWidget(label)
+
+    def handleEvent(self, evt_src, evt_type, evt_value):
+        # We should call __update() directly. This is an ugly hack to work
+        # around a tango < 9 bug that prevents subscribing to an event inside
+        # an event handler
+        Qt.QTimer.singleShot(10, self.__update)
+
+    @classmethod
+    def getQtDesignerPluginInfo(cls):
+        return dict(module="taurus.qt.qtgui.esrf.spec",
+                    icon=":designer/macroserver.png",
+                    group="ESRF Spec Widgets")
+
+
+class SpecUIMixin(TaurusBaseWidget):
+
+    _QtDesignerIcon = None
+
+    def __init__(self):
+        name = self.__class__.__name__
+        TaurusBaseWidget.__init__(self, name=name)
+        self.setAutoTooltip(False)
+        self.setWindowTitle(name)
+        self.loadUi()
+        for w in self.findChildren(Qt.QWidget):
+            if hasattr(w, "setAutoTooltip"):
+                w.setAutoTooltip(False)
+        self.connect(self, Qt.SIGNAL("modelChanged(const QString &)"),
+                     self.onModelChanged)
+
+    def onModelChanged(self, model_name):
+        pass
+
+
+class SpecBasePanel(Qt.QWidget, SpecUIMixin):
+
+    def __init__(self,  parent=None):
+        Qt.QWidget.__init__(self, parent)
+        SpecUIMixin.__init__(self)
+
+    model = Qt.Property(str, SpecUIMixin.getModel,
+                        SpecUIMixin.setModel, SpecUIMixin.resetModel)
+
+
+#@QtDesignable(group="ESRF Spec Widgets")
+class SpecOutputWidget(Qt.QPlainTextEdit, TaurusBaseWidget):
+
+    def __init__(self, parent=None, designMode=False):
+        Qt.QPlainTextEdit.__init__(self, parent)
+        TaurusBaseWidget.__init__(self, name=self.__class__.__name__,
+                                  designMode=designMode)
+        self.setAutoTooltip(False)
+        self.__connected = False
+        self.__remove_line = False
+        self.setFont(Qt.QFont("Monospace"))
+        self.setReadOnly(True)
+        self.textChanged.connect(self.__onTextChanged)
+
+    def __onTextChanged(self):
+        self.ensureCursorVisible()
+
+    def __removeCurrentLine(self):
+        cursor = self.textCursor()
+        cursor.movePosition(Qt.QTextCursor.StartOfLine,
+                            Qt.QTextCursor.KeepAnchor)
+        cursor.removeSelectedText()
+
+    def __strip_cr(self, text):
+        endswith_cr = text.endswith("\r")
+        cr_nb = text.count("\r")
+        if endswith_cr:
+            cr_nb -= 1
+        if cr_nb:
+            pass
+
+    def handleEvent(self, evt_src, evt_type, evt_value):
+        if evt_type == TaurusEventType.Config:
+            return
+        if evt_type == TaurusEventType.Error:
+            self.__remove_line = False
+            self.__connected = False
+            text = "\n--- disconnected from SPEC ---\n"
+        else:
+            text = evt_value.value
+            if not self.__connected:
+                self.__connected = True
+                if not text:
+                    text = "-1.SPEC> "
+
+            if self.__remove_line:
+                if "\n" not in text:
+                    self.__removeCurrentLine()
+                self.__remove_line = False
+            if text.endswith("\r"):
+                self.__remove_line = True
+                text = text[:-1]
+
+        self.moveCursor(Qt.QTextCursor.End)
+        self.insertPlainText(text)
+
+    model = Qt.Property(str, TaurusBaseWidget.getModel,
+                        TaurusBaseWidget.setModel, TaurusBaseWidget.resetModel)
+
+    @classmethod
+    def getQtDesignerPluginInfo(cls):
+        return dict(module="taurus.qt.qtgui.esrf.spec",
+                    icon=":designer/macroserver.png",
+                    group="ESRF Spec Widgets")
+
 
 def main():
     import sys
@@ -284,14 +486,14 @@ def main():
     from taurus.qt.qtgui.container import QGroupWidget
     from taurus.qt.qtgui.resource import getThemeIcon
     from taurus.qt.qtgui.esrf.macro import Argument
-    
+
     parser = get_taurus_parser()
     parser.usage = "%prog [options] <spec device name>"
-    app = TaurusApplication(sys.argv, cmd_line_parser=parser, 
+    app = TaurusApplication(sys.argv, cmd_line_parser=parser,
                             app_name="Axis", app_version="1.0",
                             org_domain="Taurus",
                             org_name="Taurus community")
-        
+
     args = app.get_command_line_args()
 
     if not len(args):
@@ -299,7 +501,7 @@ def main():
 
     spec = args[0]
     window = Qt.QWidget()
-    windowLayout = Qt.QVBoxLayout(window)
+    windowLayout = Qt.QGridLayout(window)
 
     panel1 = QGroupWidget()
     panel1.setTitle("ct")
@@ -314,7 +516,7 @@ def main():
     ]
     w1.setArguments(args)
     layout.addWidget(w1)
-    windowLayout.addWidget(panel1)
+    windowLayout.addWidget(panel1, 0, 0)
 
     panel2 = QGroupWidget()
     panel2.setTitle("wm")
@@ -328,7 +530,7 @@ def main():
     w2.setModel(spec)
     w2.setArguments(args)
     layout.addWidget(w2)
-    windowLayout.addWidget(panel2)
+    windowLayout.addWidget(panel2, 1, 0)
 
     panel3 = QGroupWidget()
     panel3.setTitle("ascan")
@@ -345,12 +547,12 @@ def main():
         Argument(name="nb_interv", label="Nb. interv", dtype=int,
                  tooltip="number of intervals"),
         Argument(name="int_time", label="Integ. time", dtype=float, unit="s",
-                 tooltip="integration time"),                 
+                 tooltip="integration time"),
     ]
     w3.setModel(spec)
     w3.setArguments(args)
     layout.addWidget(w3)
-    windowLayout.addWidget(panel3)
+    windowLayout.addWidget(panel3, 2, 0)
 
     panel4 = QGroupWidget()
     panel4.setTitle("ascan")
@@ -359,7 +561,7 @@ def main():
     w4 = SpecAScanWidget()
     w4.setModel(spec)
     layout.addWidget(w4)
-    windowLayout.addWidget(panel4)
+    windowLayout.addWidget(panel4, 3, 0)
 
     panel5 = QGroupWidget()
     panel5.setTitle("a3scan")
@@ -369,10 +571,23 @@ def main():
     w5.setDimensions(3)
     w5.setModel(spec)
     layout.addWidget(w5)
-    windowLayout.addWidget(panel5)    
-    
+    windowLayout.addWidget(panel5, 4, 0)
+
+    panel6 = QGroupWidget()
+    panel6.setTitle("counter monitor")
+    layout = panel6.content().layout()
+    layout.setMargin(3)
+    w6 = SpecCounterMonitorWidget()
+    w6.setModel(spec)
+    layout.addWidget(w6)
+    windowLayout.addWidget(panel6, 5, 0)
+
+    output = SpecOutputWidget()
+    output.setModel(spec + "/output")
+    windowLayout.addWidget(output, 0, 1, 6, 1)
     window.show()
     app.exec_()
+
 
 
 if __name__ == "__main__":
