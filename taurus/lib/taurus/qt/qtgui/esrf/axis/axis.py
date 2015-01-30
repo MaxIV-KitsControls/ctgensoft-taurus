@@ -222,7 +222,7 @@ class AxisWidget(TaurusWidget):
         ui.expertPanelAction.triggered.connect(self.__onExpertPanelTriggered)
 
         # Stop button
-        ui.stopToolButton.setIcon(getThemeIcon("process-stop"))
+        ui.stopToolButton.setIcon(getThemeIcon("media-playback-stop"))
 
         # need to resize button icon size because of some styles (windows, kde)
         ui.stepDownButton.setIconSize(self._DefaultButtonSize)
