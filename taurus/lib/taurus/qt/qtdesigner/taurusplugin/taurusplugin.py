@@ -37,6 +37,7 @@
       editing the widget model (same has 'Edit model...' task menu item
 """
 
+import sys
 import inspect
 
 from taurus.external.qt import Qt
@@ -44,14 +45,113 @@ from taurus.external.qt import QtDesigner
 
 from taurus.core.util.log import Logger
 
-def Q_TYPEID(class_name):
-    """ Helper function to generate an IID for Qt. Returns a QString."""
-    return Qt.QString("com.trolltech.Qt.Designer.%s" % class_name)
+
+Q_TYPEID_MAP = {'QPyDesignerContainerExtension':     'com.trolltech.Qt.Designer.Container',
+                'QPyDesignerPropertySheetExtension': 'com.trolltech.Qt.Designer.PropertySheet',
+                'QPyDesignerTaskMenuExtension':      'com.trolltech.Qt.Designer.TaskMenu',
+                'QPyDesignerMemberSheetExtension':   'com.trolltech.Qt.Designer.MemberSheet'}
+
+def Q_TYPEID(class_type):
+    return Q_TYPEID_MAP[class_type]
+
 
 designer_logger = Logger("PyQtDesigner")
 
+
+def _importPackage(name):
+    __import__(name)
+    return sys.modules[name]
+
+
+def setWidgetProperty(widget, name, value):
+    form = QtDesigner.QDesignerFormWindowInterface.findFormWindow(widget)
+    form.cursor().setWidgetProperty(widget, name, value)
+
+
+class BaseTaurusTaskMenu(QtDesigner.QPyDesignerTaskMenuExtension):
+    """
+    Base taurus task menu. Stores the widget in the widget member.
+    Subclass it to get a proper task menu.
+    """
+
+    def __init__(self, widget, parent):
+        QtDesigner.QPyDesignerTaskMenuExtension.__init__(self, parent)
+        self.widget = widget
+
+
+class TaurusModelTaskMenu(BaseTaurusTaskMenu):
+    """
+    Taurus task menu with a *Choose model...* menu item which pops up a
+    taurus model chooser.
+    """
+
+    def __init__(self, widget, parent):
+        BaseTaurusTaskMenu.__init__(self, widget, parent)
+
+        self.chooseModelAction = Qt.QAction("Choose model...", self,
+                                            triggered=self.__onEditModel)
+
+    def preferredEditAction(self):
+        return self.chooseModelAction
+
+    def taskActions(self):
+        return [self.chooseModelAction]
+
+    def __onEditModel(self):
+        from taurus.qt.qtgui.panel import TaurusModelChooser
+        dialog = TaurusModelChooser.modelChooserDlg
+
+        model, ok = dialog(singleModel=True, windowTitle="Choose widget model")
+
+        if ok and model:
+            model = model[0]
+            # need to take the scheme out to prevent designer from creating
+            # a real tango model instead of simulation
+            model = model.rpartition("://")[-1]
+            setWidgetProperty(self.widget, "model", model)
+
+
+class TaurusWidgetExtensionFactory(QtDesigner.QExtensionFactory):
+    """Extension factory for taurus widgets"""
+
+    def __init__(self, parent = None):
+        QtDesigner.QExtensionFactory.__init__(self, parent)
+
+    @staticmethod
+    def _getClass(widget, name):
+        if isinstance(name, (str, unicode, Qt.QString)):
+            mod_name, _, class_name = name.rpartition(".")
+            if not mod_name:
+                mod_name = info['module']
+            try:
+                mod = _importPackage(mod_name)
+            except ImportError:
+                designer_logger.warning("Could not find extension %s", name)
+            klass = getattr(mod, class_name)
+        else:
+            klass = name
+        return klass
+
+    def createExtension(self, widget, iid, parent):
+        if not hasattr(widget, "getQtDesignerPluginInfo"):
+            return
+
+        info = widget.getQtDesignerPluginInfo()
+        is_menu = iid == Q_TYPEID("QPyDesignerTaskMenuExtension")
+        if is_menu:
+            try:
+                menu_class = info['task_menu']
+            except KeyError:
+                if hasattr(widget, 'setModel'):
+                    menu_class = TaurusModelTaskMenu
+            menu_class = self._getClass(widget, menu_class)
+            return menu_class(widget, parent)
+
+
 class TaurusWidgetPlugin(QtDesigner.QPyDesignerCustomWidgetPlugin):
     """TaurusWidgetPlugin"""
+
+    Factory = None
     
     def __init__(self, parent = None):
         QtDesigner.QPyDesignerCustomWidgetPlugin.__init__(self)
@@ -63,7 +163,13 @@ class TaurusWidgetPlugin(QtDesigner.QPyDesignerCustomWidgetPlugin):
             want the generic taurus extensions in your widget.""" 
         if self.isInitialized():
             return
-                
+
+        if self.Factory is None:
+            manager = formEditor.extensionManager()
+            if manager:
+                self.Factory = TaurusWidgetExtensionFactory(manager)
+                for extension in Q_TYPEID_MAP:
+                    manager.registerExtensions(self.Factory, Q_TYPEID(extension))
         self.initialized = True
         
     def isInitialized(self):
@@ -115,6 +221,9 @@ class TaurusWidgetPlugin(QtDesigner.QPyDesignerCustomWidgetPlugin):
         if not hasattr(self, '_widgetInfo'):
             self._widgetInfo = self.getWidgetClass().getQtDesignerPluginInfo()
         return self._widgetInfo.get(key, dft)
+
+    def getLabel(self):
+        return self.getWidgetInfo('label', self.name())
     
     # This method returns the name of the custom widget class that is provided
     # by this plugin.
@@ -144,8 +253,12 @@ class TaurusWidgetPlugin(QtDesigner.QPyDesignerCustomWidgetPlugin):
     
     def domXml(self):
         name = str(self.name())
+        label = self.getLabel()
         lowerName = name[0].lower() + name[1:]
-        return '<widget class="%s" name=\"%s\" />\n' % (name, lowerName)
+        r = "<ui displayname=\"{0}\"> " \
+            "<widget class=\"{1}\" name=\"{2}\" /></ui>".format(label, name,
+                                                                lowerName)
+        return r
 
     def includeFile(self):
         """Returns the module containing the custom widget class. It may include
