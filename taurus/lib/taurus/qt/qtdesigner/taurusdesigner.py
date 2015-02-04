@@ -28,7 +28,7 @@ import os.path
 import optparse 
 
 import taurus
-from taurus.external.qt import Qt
+from taurus.external.qt import QtCore
 
 def env_index(env, env_name):
     env_name = str(env_name)
@@ -66,7 +66,7 @@ def append_or_create_env_list(env, env_name, env_value):
     append_or_create_env(env, env_name, env_value)
 
 def get_qtdesigner_bin():
-    designer_bin = str(Qt.QLibraryInfo.location(Qt.QLibraryInfo.BinariesPath))
+    designer_bin = str(QtCore.QLibraryInfo.location(QtCore.QLibraryInfo.BinariesPath))
 
     plat = sys.platform
     if plat == "darwin":
@@ -89,7 +89,7 @@ def qtdesigner_prepare_taurus(env=None, taurus_extra_path=None):
 
     # Tell Qt Designer where it can find the directory containing the plugins
     if env is None:
-        env = Qt.QProcess.systemEnvironment()
+        env = QtCore.QProcess.systemEnvironment()
 
     # Set PYQTDESIGNERPATH to look inside taurus for designer plugins
     taurus_designer_path = get_taurus_designer_path()
@@ -109,8 +109,8 @@ def qtdesigner_start(args, env=None):
     # Start Designer.
     designer_bin = get_qtdesigner_bin()
 
-    designer = Qt.QProcess()
-    designer.setProcessChannelMode(Qt.QProcess.ForwardedChannels)
+    designer = QtCore.QProcess()
+    designer.setProcessChannelMode(QtCore.QProcess.ForwardedChannels)
     designer.setEnvironment(env)
     designer.start(designer_bin, args)
     designer.waitForFinished(-1)
