@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Dialog</class>
+ <widget class="QDialog" name="Dialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>843</width>
+    <height>415</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Argument Editor</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_3">
+   <item>
+    <widget class="QSplitter" name="splitter">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <widget class="QWidget" name="argument_list_panel" native="true">
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QListWidget" name="argument_list">
+         <property name="alternatingRowColors">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QWidget" name="argument_toolbar" native="true">
+         <layout class="QVBoxLayout" name="verticalLayout_2">
+          <item>
+           <widget class="QToolButton" name="add_argument_button">
+            <property name="text">
+             <string>+</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="remove_argument_button">
+            <property name="text">
+             <string>-</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="argument_up_button">
+            <property name="text">
+             <string>up</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="argument_down_button">
+            <property name="text">
+             <string>down</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="verticalSpacer_2">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="argument_form" native="true">
+      <layout class="QFormLayout" name="formLayout">
+       <property name="labelAlignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+       <item row="0" column="0">
+        <widget class="QLabel" name="name_label">
+         <property name="text">
+          <string>Name:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLineEdit" name="name_lineedit"/>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="dtype_label">
+         <property name="text">
+          <string>Type:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QComboBox" name="dtype_combobox">
+         <item>
+          <property name="text">
+           <string>str</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>float</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>int</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>bool</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>enum</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>motor</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>counter</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="label_label">
+         <property name="text">
+          <string>Label:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QLineEdit" name="label_lineedit"/>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="unit_label">
+         <property name="text">
+          <string>Unit:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QLineEdit" name="unit_lineedit"/>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="tooltip_label">
+         <property name="text">
+          <string>Tool tip:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="QLineEdit" name="tooltip_lineedit"/>
+       </item>
+       <item row="5" column="0">
+        <widget class="QLabel" name="statustip_label">
+         <property name="text">
+          <string>Status tip:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="0">
+        <widget class="QLabel" name="icon_label">
+         <property name="text">
+          <string>Icon name:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1">
+        <widget class="QLineEdit" name="statustip_lineedit"/>
+       </item>
+       <item row="6" column="1">
+        <widget class="QLineEdit" name="icon_lineedit"/>
+       </item>
+       <item row="7" column="0">
+        <widget class="QLabel" name="default_value_label">
+         <property name="text">
+          <string>Default value:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="1">
+        <widget class="QLineEdit" name="default_value_lineedit"/>
+       </item>
+       <item row="8" column="1">
+        <widget class="QLineEdit" name="min_value_lineedit"/>
+       </item>
+       <item row="9" column="1">
+        <widget class="QLineEdit" name="max_value_lineedit"/>
+       </item>
+       <item row="8" column="0">
+        <widget class="QLabel" name="min_value_label">
+         <property name="text">
+          <string>Min. value:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="9" column="0">
+        <widget class="QLabel" name="max_value_label">
+         <property name="text">
+          <string>Max. value:</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QGroupBox" name="enum_groupbox">
+      <property name="title">
+       <string>Enumeration</string>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <item>
+        <widget class="QTableWidget" name="enum_list">
+         <property name="alternatingRowColors">
+          <bool>true</bool>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SingleSelection</enum>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectRows</enum>
+         </property>
+         <property name="sortingEnabled">
+          <bool>true</bool>
+         </property>
+         <attribute name="verticalHeaderVisible">
+          <bool>false</bool>
+         </attribute>
+         <column>
+          <property name="text">
+           <string>Value</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Label</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+       <item>
+        <widget class="QWidget" name="enum_toolbar" native="true">
+         <layout class="QVBoxLayout" name="verticalLayout_4">
+          <item>
+           <widget class="QToolButton" name="add_enum_button">
+            <property name="text">
+             <string>+</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="remove_enum_button">
+            <property name="text">
+             <string>-</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="verticalSpacer">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="button_box">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>name_lineedit</tabstop>
+  <tabstop>dtype_combobox</tabstop>
+  <tabstop>label_lineedit</tabstop>
+  <tabstop>unit_lineedit</tabstop>
+  <tabstop>tooltip_lineedit</tabstop>
+  <tabstop>statustip_lineedit</tabstop>
+  <tabstop>icon_lineedit</tabstop>
+  <tabstop>default_value_lineedit</tabstop>
+  <tabstop>min_value_lineedit</tabstop>
+  <tabstop>max_value_lineedit</tabstop>
+  <tabstop>argument_list</tabstop>
+  <tabstop>add_argument_button</tabstop>
+  <tabstop>remove_argument_button</tabstop>
+  <tabstop>argument_up_button</tabstop>
+  <tabstop>argument_down_button</tabstop>
+  <tabstop>enum_list</tabstop>
+  <tabstop>add_enum_button</tabstop>
+  <tabstop>remove_enum_button</tabstop>
+  <tabstop>button_box</tabstop>
+ </tabstops>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>button_box</sender>
+   <signal>accepted()</signal>
+   <receiver>Dialog</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>248</x>
+     <y>254</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>157</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>button_box</sender>
+   <signal>rejected()</signal>
+   <receiver>Dialog</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>316</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>286</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

@@ -343,9 +343,11 @@ class SpecMacroForm(MacroForm, TaurusBaseWidget):
 
     @classmethod
     def getQtDesignerPluginInfo(cls):
-        return dict(module="taurus.qt.qtgui.esrf.spec",
-                    icon=":designer/macroserver.png",
-                    group="ESRF Spec Widgets")
+        d = MacroForm.getQtDesignerPluginInfo()
+        d.update(module="taurus.qt.qtgui.esrf.spec",
+                 icon=":designer/macroserver.png",
+                 group="ESRF Spec Widgets")
+        return d
 
 
 class SpecCounterMonitorWidget(Qt.QWidget, TaurusBaseWidget):
@@ -413,7 +415,6 @@ class SpecBasePanel(Qt.QWidget, SpecUIMixin):
                         SpecUIMixin.setModel, SpecUIMixin.resetModel)
 
 
-#@QtDesignable(group="ESRF Spec Widgets")
 class SpecOutputWidget(Qt.QPlainTextEdit, TaurusBaseWidget):
 
     def __init__(self, parent=None, designMode=False):

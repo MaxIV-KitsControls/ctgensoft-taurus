@@ -331,18 +331,19 @@ class ANScanWidget(Qt.QWidget):
                                     resetStopButtonVisible)
 
 
-class Argument:
+class Argument(object):
     """Object containing argument information"""
 
     def __init__(self, name=None, dtype=None, label=None, unit=None,
                  tooltip=None, statustip=None, icon=None, min_value=None,
                  max_value=None, default_value=None):
-        if name is None:
-            name = "<arg>"
         self.name = name
-        self.dtype = self.__to_dtype(dtype)
+        self.dtype = dtype
         if label is None:
-            label = name.capitalize()
+            if name:
+                label = name.capitalize()
+            else:
+                label = name
         self.label = label
         self.unit = unit
         self.tooltip = tooltip
@@ -353,7 +354,13 @@ class Argument:
         self.max_value = max_value
         self.default_value = default_value
 
-    def __to_dtype(self, dtype):
+    @property
+    def dtype(self):
+        return self.__dtype
+
+    @dtype.setter
+    def dtype(self, dtype):
+        self.enum = None
         if dtype in (None, str):
             dtype = "str"
         elif dtype == int:
@@ -362,12 +369,58 @@ class Argument:
             dtype = 'float'
         elif dtype == bool:
             dtype = 'bool'
-        return dtype
+        elif isinstance(dtype, (list, tuple)):
+            enum = []
+            for n, elem in enumerate(dtype):
+                if isinstance(elem, (list, tuple)):
+                    value, label = map(str, elem)
+                else:
+                    value = label = str(elem)
+                enum.append((value, label))
+            dtype = 'enum'
+            self.enum = enum
+        self.__dtype = dtype
+
+    def __dtype_f(self):
+        return {'float':float, 'bool':bool, 'int':int, 'enum':int}[self.dtype]
+
+    @property
+    def min_value(self):
+        return self.__min_value
+
+    @min_value.setter
+    def min_value(self, value):
+        try:
+            self.__min_value = self.__dtype_f()(value)
+        except:
+            self.__min_value = None
+
+    @property
+    def max_value(self):
+        return self.__max_value
+
+    @max_value.setter
+    def max_value(self, value):
+        try:
+            self.__max_value = self.__dtype_f()(value)
+        except:
+            self.__max_value = None
+
+    @property
+    def default_value(self):
+        return self.__default_value
+
+    @default_value.setter
+    def default_value(self, value):
+        try:
+            self.__default_value = self.__dtype_f()(value)
+        except:
+            self.__default_value = None
 
     def __to_dict(self):
         d = dict(name=self.name, dtype=self.dtype, label=self.label)
         for item_name in ("unit", "tooltip", "statustip", "icon", "min_value",
-                          "max_value", "default_value"):
+                          "max_value", "default_value", "enum"):
             item = getattr(self, item_name)
             if item is not None:
                 d[item_name] = item
@@ -418,18 +471,10 @@ class Argument:
                 widget.setSuffix(" " + self.unit)
             if self.default_value is not None:
                 widget.setValue(self.default_value)
-        elif isinstance(dtype, (list, tuple)):
-            for item in dtype:
-                if isinstance(item, (list, tuple)):
-                    value, label = item
-                else:
-                    value, label = item, item
-                if self.unit is not None:
-                    label += " " + self.unit
-                if self.icon is None:
-                    widget.addItem(label, value)
-                else:
-                    widget.addItem(self.icon, label, value)
+        elif dtype == "enum":
+            for item in self.enum:
+                value, label = item
+                widget.addItem(label, value)
             if self.default_value is not None:
                 widget.setCurrentIndex(widget.findData(self.default_value))
         if self.tooltip is not None:
@@ -676,7 +721,8 @@ class MacroForm(Qt.QWidget):
     def getQtDesignerPluginInfo(cls):
         return dict(module="taurus.qt.qtgui.esrf.macro",
                     icon=":designer/macroserver.png",
-                    group="ESRF Macro Widgets")
+                    group="ESRF Macro Widgets",
+                    task_menu="taurus.qt.qtgui.esrf.macro.designer.MacroTaskMenu")
 
 
 def main():
