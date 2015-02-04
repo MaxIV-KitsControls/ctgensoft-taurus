@@ -409,4 +409,4 @@ if __config.QT_AUTO_INIT:
                resources=__config.QT_AUTO_INIT_RES,
                remove_inputhook=__config.QT_AUTO_REMOVE_INPUTHOOK)
 
-    __log.info('Using "%s" for Qt', __QT_NAME)
+    __log.debug('Using "%s" for Qt', __QT_NAME)

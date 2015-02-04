@@ -118,6 +118,9 @@ def qtdesigner_start(args, env=None):
     return designer.exitCode()
 
 def main(env=None):
+    from taurus.core.util.log import Logger
+    Logger.setLogLevel(Logger.Warning)
+
     version = "taurusdesigner %s" % (taurus.Release.version)
     usage = "Usage: %prog [options] <ui file(s)>"
     description = "The Qt designer application customized for taurus"
