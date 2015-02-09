@@ -120,12 +120,6 @@ class AScanWidget(Qt.QWidget):
     orientation = Qt.Property("Qt::Orientation", getOrientation, setOrientation,
                               resetOrientation)
 
-    @classmethod
-    def getQtDesignerPluginInfo(cls):
-        return dict(module="taurus.qt.qtgui.esrf.macro",
-                    icon=":designer/macroserver.png",
-                    group="ESRF Macro Widgets")
-
     def __onAxisChanged(self, index):
         enabled = index != -1
         self.ui.startSpinBox.setEnabled(enabled)
@@ -168,6 +162,13 @@ class AScanWidget(Qt.QWidget):
 
     def getCommandLine(self):
         return " ".join(map(str, self.getCommandLineList()))
+
+    @classmethod
+    def getQtDesignerPluginInfo(cls):
+        return dict(label="AScan Widget",
+                    module="taurus.qt.qtgui.esrf.macro",
+                    icon=":designer/macroserver.png",
+                    group="ESRF Macro Widgets")
 
 
 class ANScanWidget(Qt.QWidget):
@@ -277,7 +278,8 @@ class ANScanWidget(Qt.QWidget):
 
     @classmethod
     def getQtDesignerPluginInfo(cls):
-        return dict(module="taurus.qt.qtgui.esrf.macro",
+        return dict(label="ANScan Widget",
+                    module="taurus.qt.qtgui.esrf.macro",
                     icon=":designer/macroserver.png",
                     group="ESRF Macro Widgets")
 
@@ -719,7 +721,8 @@ class MacroForm(Qt.QWidget):
 
     @classmethod
     def getQtDesignerPluginInfo(cls):
-        return dict(module="taurus.qt.qtgui.esrf.macro",
+        return dict(label="Macro Form",
+                    module="taurus.qt.qtgui.esrf.macro",
                     icon=":designer/macroserver.png",
                     group="ESRF Macro Widgets",
                     task_menu="taurus.qt.qtgui.esrf.macro.designer.MacroTaskMenu")

@@ -233,7 +233,8 @@ class SpecAScanWidget(AScanWidget, TaurusBaseWidget):
 
     @classmethod
     def getQtDesignerPluginInfo(cls):
-        return dict(module="taurus.qt.qtgui.esrf.spec",
+        return dict(label="Spec Ascan Widget",
+                    module="taurus.qt.qtgui.esrf.spec",
                     icon=":designer/macroserver.png",
                     group="ESRF Spec Widgets")
 
@@ -300,7 +301,8 @@ class SpecANScanWidget(ANScanWidget, TaurusBaseWidget):
 
     @classmethod
     def getQtDesignerPluginInfo(cls):
-        return dict(module="taurus.qt.qtgui.esrf.spec",
+        return dict(label="Spec ANscan Widget",
+                    module="taurus.qt.qtgui.esrf.spec",
                     icon=":designer/macroserver.png",
                     group="ESRF Spec Widgets")
 
@@ -344,7 +346,8 @@ class SpecMacroForm(MacroForm, TaurusBaseWidget):
     @classmethod
     def getQtDesignerPluginInfo(cls):
         d = MacroForm.getQtDesignerPluginInfo()
-        d.update(module="taurus.qt.qtgui.esrf.spec",
+        d.update(label="Spec Macro Form",
+                 module="taurus.qt.qtgui.esrf.spec",
                  icon=":designer/macroserver.png",
                  group="ESRF Spec Widgets")
         return d
@@ -380,7 +383,8 @@ class SpecCounterMonitorWidget(Qt.QWidget, TaurusBaseWidget):
 
     @classmethod
     def getQtDesignerPluginInfo(cls):
-        return dict(module="taurus.qt.qtgui.esrf.spec",
+        return dict(label="Spec Counter Monitor",
+                    module="taurus.qt.qtgui.esrf.spec",
                     icon=":designer/macroserver.png",
                     group="ESRF Spec Widgets")
 
@@ -475,7 +479,8 @@ class SpecOutputWidget(Qt.QPlainTextEdit, TaurusBaseWidget):
 
     @classmethod
     def getQtDesignerPluginInfo(cls):
-        return dict(module="taurus.qt.qtgui.esrf.spec",
+        return dict(label="Spec Output",
+                    module="taurus.qt.qtgui.esrf.spec",
                     icon=":designer/macroserver.png",
                     group="ESRF Spec Widgets")
 
