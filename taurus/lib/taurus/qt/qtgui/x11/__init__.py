@@ -41,5 +41,5 @@ Example::
 
 __docformat__ = 'restructuredtext'
 
-from .xcmd import XCommandWidget
-from .xterm import XTermWidget
+from .xcmd import XCommandWidget, XCommandWindow
+from .xterm import XTermWidget, XTermWindow
