@@ -144,6 +144,8 @@ class TaurusWidgetExtensionFactory(QtDesigner.QExtensionFactory):
             except KeyError:
                 if hasattr(widget, 'setModel'):
                     menu_class = TaurusModelTaskMenu
+                else:
+                    return
             menu_class = self._getClass(widget, menu_class)
             return menu_class(widget, parent)
 
