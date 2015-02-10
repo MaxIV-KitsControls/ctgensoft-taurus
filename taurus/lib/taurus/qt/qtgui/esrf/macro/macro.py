@@ -580,7 +580,7 @@ class MacroForm(Qt.QWidget):
         self.ui = _UI()
         Qt.QWidget.__init__(self, parent)
         layout = Qt.QFormLayout(self)
-        layout.setMargin(3)
+        layout.setMargin(0)
         layout.setSpacing(3)
 
         self.ui.buttonPanel = Qt.QWidget()
