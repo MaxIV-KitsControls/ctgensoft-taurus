@@ -15,6 +15,10 @@ This package contains a collection of Qt based widgets designed to execute
 Spec macros.
 """
 
+__all__ = ["SpecAScanWidget", "SpecANScanWidget", "SpecMacroForm",
+           "SpecCounterMonitorWidget", "SpecOutputWidget", "SpecXTermWidget",
+           "SpecXTermWindow"]
+
 __docformat__ = 'restructuredtext'
 
 import sys
@@ -484,6 +488,335 @@ class SpecOutputWidget(Qt.QPlainTextEdit, TaurusBaseWidget):
                     icon=":designer/macroserver.png",
                     group="ESRF Spec Widgets")
 
+
+from taurus.qt.qtgui.x11 import XTermWidget, XTermWindow
+from taurus.external.enum import Enum
+
+
+class SpecXTermWidget(XTermWidget):
+    """
+    Spec xterm widget.
+
+    In master mode:
+        reattach a session and if necessary detach or even create it first.
+    In slave mode:
+        Attach to a not detached spec session (Multi display mode)
+    """
+
+    class SpecSessionType(Enum):
+        Master = "master"
+        MasterShared = "master shared"
+        Slave = "slave"
+
+    DefaultAutoRestart = False
+
+    DefaultSpecCommand = 'spec'
+    DefaultSpecCommandPrefix = ''
+    DefaultSpecArguments = ''
+    DefaultSpecSessionType = SpecSessionType.Master
+
+    def __init__(self, parent=None, designMode=False):
+        XTermWidget.__init__(self, parent=parent, designMode=designMode)
+        self.__specCommand = self.DefaultSpecCommand
+        self.__specCommandPrefix = self.DefaultSpecCommandPrefix
+        self.__specArguments = self.DefaultSpecArguments
+        self.__specSessionType = self.DefaultSpecSessionType
+
+        self.resetSpecCommand()
+        self.resetSpecCommandPrefix()
+        self.resetSpecArguments()
+        self.resetSpecSessionType()
+
+    def _getDesignModeWidget(self):
+        widget = XTermWidget._getDesignModeWidget(self)
+        widget.setText("1.Fake SPEC> ")
+        return widget
+
+    def __updateArguments(self):
+        arguments = []
+        if self.specCommandPrefix:
+            arguments = self.specCommandPrefix.split() + arguments
+        session = self.getSpecSessionType()
+        ST = SpecXTermWidget.SpecSessionType
+        if session in (ST.MasterShared, ST.Slave):
+            session_name = self.specCommand
+            if session == ST.MasterShared:
+                arguments.extend(['screen', '-d', '-R', '-S', session_name])
+                arguments.extend(self.specCommand.split())
+                arguments.extend(self.specArguments.split())
+            else:
+                arguments.extend(['screen', '-x', session_name])
+        else:
+            arguments.extend(self.specCommand.split())
+        self.xtermCommand = " ".join(arguments)
+
+    def getSpecCommand(self):
+        """
+        Returns the executable spec name
+
+        :return: the executable spec name
+        :rtype: str
+        """
+        return str(self.__specCommand)
+
+    @Qt.Slot(str)
+    def setSpecCommand(self, name):
+        """
+        Sets the executable spec name (ex: fourc)
+        Emits *commandChanged* signal.
+
+        :param name: spec name(ex: fourc)
+        :type name: str
+        """
+        if name == self.__specCommand:
+            return
+        self.__specCommand = name
+        self.__updateArguments()
+
+    def resetSpecCommand(self):
+        """
+        Resets the user host to empty. Emits *commandChanged* signal.
+        """
+        self.setSpecCommand(self.DefaultSpecCommand)
+
+    def getSpecCommandPrefix(self):
+        """
+        Returns the executable spec name
+
+        :return: the executable spec name
+        :rtype: str
+        """
+        return str(self.__specCommandPrefix)
+
+    @Qt.Slot(str)
+    def setSpecCommandPrefix(self, name):
+        """
+        Sets the executable spec name (ex: fourc)
+        Emits *commandChanged* signal.
+
+        :param name: spec name(ex: fourc)
+        :type name: str
+        """
+        if name == self.__specCommandPrefix:
+            return
+        self.__specCommandPrefix = name
+        self.__updateArguments()
+
+    def resetSpecCommandPrefix(self):
+        """
+        Resets the user host to empty. Emits *commandChanged* signal.
+        """
+        self.setSpecCommandPrefix(self.DefaultSpecCommandPrefix)
+
+    @Qt.Slot(str)
+    def setSpecArguments(self, arguments):
+        """
+        Sets extra parameters to the command line (they should be space
+        separated). Emits *commandChanged* signal.
+
+        :param arguments: extra parameters string
+        :type arguments: str
+        """
+        if arguments == self.__specArguments:
+            return
+        self.__specArguments = arguments
+        self.__updateArguments()
+
+    def getSpecArguments(self):
+        """
+        Returns the current extra parameters string.
+
+        :return: the current extra parameters string
+        :rtype: str
+        """
+        return str(self.__specArguments)
+
+    def resetSpecArguments(self):
+        """
+        Resets the extra paramters to default. Emits *commandChanged* signal.
+        """
+        self.setSpecArguments(self.DefaultSpecArguments)
+
+    def getSpecSessionType(self):
+        """
+        Returns the spec session type this widget will create.
+
+        :return:
+        :rtype: str
+        """
+        return self.__specSessionType
+
+    def getSpecSessionTypeStr(self):
+        """For use in Qt designer"""
+        return self.getSpecSessionType().name
+
+    @Qt.Slot(str)
+    def setSpecSessionType(self, session):
+        """
+        Sets the spec session type.
+        Emits *commandChanged* signal.
+
+        In master mode:
+            simply executes spec executable
+        In master shared mode:
+            reattach a session and if necessary detach or even create it first.
+        In slave mode:
+            Attach to a not detached spec session
+
+        :param session: spec master mode. Can be one of SpecSessionType
+                        enumeration options or corresponding string (ex:
+                        SpecSessionType.Master, "master shared")
+        :type session: SpecSessionType or str
+        """
+        if session == self.__specSessionType:
+            return
+        if not isinstance(session, SpecXTermWidget.SpecSessionType):
+            slower = session.lower()
+            for i in SpecXTermWidget.SpecSessionType:
+                if i.name.lower() == slower or i.value == slower:
+                    session = i
+                    break
+            else:
+                raise ValueError("Invalid spec session type '{0}'".format(session))
+        self.__specSessionType = session
+        self.__updateArguments()
+
+    def resetSpecSessionType(self):
+        """
+        Resets the master to default (False).
+        Emits *commandChanged* signal.
+        """
+        self.setSpecSessionType(self.DefaultSpecSessionType)
+
+    @classmethod
+    def getQtDesignerPluginInfo(cls):
+        return dict(label="Spec XTerm Widget",
+                    module="taurus.qt.qtgui.esrf.spec",
+                    icon=":/designer/xterm.png",
+                    group="ESRF Spec Widgets")
+
+    #:
+    #: Specifies the command to run on the xterm. Use empty string (default for
+    #: no command (ex: python)
+    #:
+    xtermCommand = Qt.Property(str, XTermWidget.getXTermCommand,
+                               XTermWidget.setXTermCommand,
+                               XTermWidget.resetXTermCommand,
+                               doc="Command to run on xterm", designable=False)
+
+    #:
+    #: Specifies spec executable name (ex: fourc)
+    #:
+    specCommand = Qt.Property(str, getSpecCommand, setSpecCommand,
+                              resetSpecCommand, doc="spec executable")
+
+    #:
+    #: Specifies spec executable name (ex: fourc)
+    #:
+    specCommandPrefix = Qt.Property(str, getSpecCommandPrefix,
+                                    setSpecCommandPrefix,
+                                    resetSpecCommandPrefix,
+                                    doc="spec executable")
+
+    #:
+    #: Space separated list of extra parameters
+    #:
+    specArguments = Qt.Property(str, getSpecArguments, setSpecArguments,
+                                resetSpecArguments)
+
+    #:
+    #: Specifies to run in master (shared) mode, slave mode
+    #:
+    specSessionType = Qt.Property(str, getSpecSessionTypeStr,
+                                  setSpecSessionType, resetSpecSessionType,
+                                  doc="spec execution mode mode")
+
+class SpecXTermWindow(XTermWindow):
+
+    Widget = SpecXTermWidget
+
+    def getSpecCommand(self):
+        return self.XWidget().specCommand
+
+    @Qt.Slot(str)
+    def setSpecCommand(self, specCommand):
+        self.XWidget().specCommand = specCommand
+
+    def resetSpecCommand(self):
+        self.XWidget().resetSpecCommand()
+
+    def getSpecCommandPrefix(self):
+        return self.XWidget().specCommandPrefix
+
+    @Qt.Slot(str)
+    def setSpecCommandPrefix(self, specCommandPrefix):
+        self.XWidget().specCommandPrefix = specCommandPrefix
+
+    def resetSpecCommandPrefix(self):
+        self.XWidget().resetSpecCommandPrefix()
+
+    def getSpecArguments(self):
+        return self.XWidget().specArguments
+
+    @Qt.Slot(str)
+    def setSpecArguments(self, specArguments):
+        self.XWidget().specArguments = specArguments
+
+    def resetSpecArguments(self):
+        self.XWidget().resetSpecArguments()
+
+    def getSpecSessionType(self):
+        return self.XWidget().specSessionType
+
+    @Qt.Slot(str)
+    def setSpecSessionType(self, specSessionType):
+        self.XWidget().specSessionType = specSessionType
+
+    def resetSpecSessionType(self):
+        self.XWidget().resetSpecSessionType()
+
+    @classmethod
+    def getQtDesignerPluginInfo(cls):
+        return dict(label="Spec XTerm Window",
+                    module="taurus.qt.qtgui.esrf.spec",
+                    icon=":/designer/xterm.png",
+                    group="ESRF Spec Widgets")
+
+    #:
+    #: Specifies the command to run on the xterm. Use empty string (default for
+    #: no command (ex: python)
+    #:
+    xtermCommand = Qt.Property(str, XTermWindow.getXTermCommand,
+                               XTermWindow.setXTermCommand,
+                               XTermWindow.resetXTermCommand,
+                               doc="Command to run on xterm", designable=False)
+
+    #:
+    #: Specifies spec executable name (ex: fourc)
+    #:
+    specCommand = Qt.Property(str, getSpecCommand, setSpecCommand,
+                              resetSpecCommand, doc="spec executable")
+
+    #:
+    #: Specifies spec executable name (ex: fourc)
+    #:
+    specCommandPrefix = Qt.Property(str, getSpecCommandPrefix,
+                                    setSpecCommandPrefix,
+                                    resetSpecCommandPrefix,
+                                    doc="spec executable")
+
+    #:
+    #: Space separated list of extra parameters
+    #:
+    specArguments = Qt.Property(str, getSpecArguments, setSpecArguments,
+                                resetSpecArguments)
+
+    #:
+    #: Specifies to run in master (shared) mode, slave mode
+    #:
+    specSessionType = Qt.Property(str, getSpecSessionType,
+                                  setSpecSessionType, resetSpecSessionType,
+                                  doc="spec execution mode mode")
 
 def main():
     import sys
