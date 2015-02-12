@@ -52,8 +52,9 @@ import weakref
 
 from taurus.core.util import log
 from taurus.external.qt import Qt
+from taurus.external.ordereddict import OrderedDict
 from taurus.qt.qtgui.resource import getThemeIcon
-from taurus.qt.qtgui.util.taurusactionfactory import ActionFactory
+from taurus.qt.qtgui.action import createAction
 
 
 class _FakeX11EmbedContainter(Qt.QLabel):
@@ -93,20 +94,21 @@ class XCommandWidget(Qt.QWidget):
     to explicitly call `start()`.
     """
 
+    DefaultCommand = ''
+    DefaultWinIdParam = ''
+    DefaultArguments = ''
     DefaultAutoRestart = True
     DefaultAutoUpdate = False
-    DefaultWinIdParam = ''
-    DefaultExtraParams = ''
 
     commandChanged = Qt.Signal()
 
     def __init__(self, parent=None, designMode=False):
         Qt.QWidget.__init__(self, parent)
-        self.__command = None
-        self.__winIdParam = None
-        self.__extraParams = []
-        self.__autoRestart = False # Must be False!
-        self.__autoUpdate = False
+        self.__command = self.DefaultCommand
+        self.__winIdParam = self.DefaultWinIdParam
+        self.__arguments = self.DefaultArguments
+        self.__autoRestart = False # must be False
+        self.__autoUpdate = self.DefaultAutoUpdate
         self.__pid = None
         self.__idle = Qt.QTimer(self)
         self.__idle.timeout.connect(self.__start)
@@ -114,8 +116,10 @@ class XCommandWidget(Qt.QWidget):
         if designMode:
             self.__x11Widget = self._getDesignModeWidget()
         else:
-            self.__x11Widget = Qt.QX11EmbedContainer(self)
-            self.__x11Widget.error.connect(self.__onError)
+            self.__x11Widget = x11Widget = Qt.QX11EmbedContainer(self)
+            x11Widget.error.connect(self.__onError)
+            x11Widget.setContextMenuPolicy(Qt.Qt.NoContextMenu)
+#        self.setContextMenuPolicy(Qt.Qt.ActionsContextMenu)
         Qt.qApp.aboutToQuit.connect(self.__onQuit)
 
         layout = Qt.QVBoxLayout(self)
@@ -123,11 +127,38 @@ class XCommandWidget(Qt.QWidget):
         layout.setSpacing(0)
         layout.addWidget(self.__x11Widget)
 
+        self.__actions = actions = OrderedDict()
+        actions['refresh'] = createAction(parent=self, text="Restart",
+                                          icon="view-refresh",
+                                          toolTip="Restart the sub application",
+                                          statusTip="Restarts the sub application",
+                                          triggered=self.restart)
+        sep = Qt.QAction(self)
+        sep.setSeparator(True)
+        actions['__sep1__'] = sep
+        actions['stop'] = createAction(parent=self, text="Stop",
+                                       icon="application-exit",
+                                       toolTip="Stop the sub application",
+                                       statusTip="Stops the sub application",
+                                       triggered=self.terminate)
+        actions['kill'] = createAction(parent=self, text="Kill",
+                                       icon="process-stop",
+                                       toolTip="Forces the sub application to end",
+                                       triggered=self.kill)
+        sep = Qt.QAction(self)
+        sep.setSeparator(True)
+        actions['__sep2__'] = sep
+        actions['autorestart'] = createAction(parent=self, text="Auto restart",
+                                              icon="emblem-synchronizing",
+                                              toolTip="Toggle auto restart on/off",
+                                              statusTip="Toggles auto restart on/off",
+                                              toggled=self.setAutoRestart)
+
         self.resetAutoUpdate()
+        self.resetAutoRestart()
         self.resetCommand()
         self.resetWinIdParam()
-        self.resetExtraParams()
-        self.resetAutoRestart()
+        self.resetArguments()
 
     def __del__(self):
         self.terminate()
@@ -147,8 +178,7 @@ class XCommandWidget(Qt.QWidget):
         if self.__designMode:
             return
         self.__idle.stop()
-        cmd = [self.command, self.winIdParam, str(self.getX11WinId())] + \
-               self._getExtraParams()
+        cmd = self.getFullCommandLine()
         self.__pid = os.fork()
         if not self.__pid:
             # child exec the command
@@ -156,13 +186,17 @@ class XCommandWidget(Qt.QWidget):
             os.execl(*cmd)
             os.exit()
         else:
-            log.debug("Running: %s", " ".join(cmd))
+            log.debug("Running: %s", cmd)
 
     def _getDesignModeWidget(self):
         return _FakeX11EmbedContainter()
 
-    def _getExtraParams(self):
-        return self.extraParams.split()
+    def _buildArguments(self):
+        return self.arguments.split()
+
+    def getFullCommandLine(self):
+        args = self._buildArguments()
+        return [self.command, self.winIdParam, str(self.getX11WinId())] + args
 
     def getX11Widget(self):
         """
@@ -229,6 +263,28 @@ class XCommandWidget(Qt.QWidget):
     def sizeHint(self):
         return Qt.QSize(320, 240)
 
+    def contextMenuEvent(self, event):
+        menu = Qt.QMenu(self)
+        for action in self.actions():
+            menu.addAction(action)
+#        menu.addAction(self.__actions['refresh'])
+#        menu.addSeparator()
+#        menu.addAction(self.__actions['stop'])
+#        menu.addAction(self.__actions['kill'])
+        menu.exec_(event.globalPos())
+
+    def actions(self):
+        """Override Qt.QWidget.actions()"""
+        return self.__actions.values()
+
+    def getActions(self):
+        """
+        Returns widget's dictionary of actions
+        :return: widget's dictionary of actions
+        :rtype: dict<str, QAction>
+        """
+        return self.__actions
+
     @classmethod
     def getQtDesignerPluginInfo(cls):
         return dict(label="X11 Command Widget",
@@ -256,6 +312,8 @@ class XCommandWidget(Qt.QWidget):
         :param command: command name
         :type command: str
         """
+        if command == self.__command:
+            return
         self.__command = command
         if command is None:
             self.setWindowTitle("<None>")
@@ -267,7 +325,7 @@ class XCommandWidget(Qt.QWidget):
         """
         Resets the command name to None. Emits *commandChanged* signal.
         """
-        self.setCommand(None)
+        self.setCommand(self.DefaultCommand)
 
     def getWinIdParam(self):
         """
@@ -287,6 +345,8 @@ class XCommandWidget(Qt.QWidget):
         :param winIdParam: window id parameter name.
         :type winIdParam: str
         """
+        if winIdParam == self.__winIdParam:
+            return
         self.__winIdParam = winIdParam
         self.commandChanged.emit()
 
@@ -297,31 +357,33 @@ class XCommandWidget(Qt.QWidget):
         self.setWinIdParam(self.DefaultWinIdParam)
 
     @Qt.Slot(str)
-    def setExtraParams(self, params):
+    def setArguments(self, arguments):
         """
         Sets extra parameters to the command line (they should be space
-        sepated). Emits *commandChanged* signal.
+        separated). Emits *commandChanged* signal.
 
-        :param params: extra parameters string
-        :type params: str
+        :param arguments: extra parameters string
+        :type arguments: str
         """
-        self.__extraParams = params
+        if arguments == self.__arguments:
+            return
+        self.__arguments = arguments
         self.commandChanged.emit()
 
-    def getExtraParams(self):
+    def getArguments(self):
         """
         Returns the current extra parameters string.
 
         :return: the current extra parameters string
         :rtype: str
         """
-        return self.__extraParams
+        return str(self.__arguments)
 
-    def resetExtraParams(self):
+    def resetArguments(self):
         """
         Resets the extra paramters to default. Emits *commandChanged* signal.
         """
-        self.setExtraParams(self.DefaultExtraParams)
+        self.setArguments(self.DefaultArguments)
 
     @Qt.Slot(bool)
     def setAutoRestart(self, yesno):
@@ -335,12 +397,12 @@ class XCommandWidget(Qt.QWidget):
         if yesno == self.__autoRestart:
             return
         self.__autoRestart = yesno
+        self.__actions['autorestart'].setChecked(yesno)
         x11Widget = self.getX11Widget()
         if yesno:
-            f = x11Widget.clientClosed.connect
+            x11Widget.clientClosed.connect(self.start)
         else:
-            f = x11Widget.clientClosed.disconnect
-        f(self.start)
+            x11Widget.clientClosed.disconnect(self.start)
 
     def getAutoRestart(self):
         """
@@ -362,9 +424,9 @@ class XCommandWidget(Qt.QWidget):
         """
         (De)activates the widget auto update. If auto update is enabled,
         when the underlying command changes (either due to command, winIdParam
-        or extraParams changed), the process is imediately restarted.
+        or extraArguments changed), the process is imediately restarted.
 
-        :param params: extra parameters string
+        :param arguments: extra parameters string
         :type command: str
         """
         if yesno == self.__autoUpdate:
@@ -372,10 +434,9 @@ class XCommandWidget(Qt.QWidget):
         self.__autoUpdate = yesno
         x11Widget = self.getX11Widget()
         if yesno:
-            f = self.commandChanged.connect
+            self.commandChanged.connect(self.restart)
         else:
-            f = self.commandChanged.disconnect
-        f(self.restart)
+            self.commandChanged.disconnect(self.restart)
 
     def getAutoUpdate(self):
         """
@@ -402,13 +463,12 @@ class XCommandWidget(Qt.QWidget):
     #: window ID (ex: for xterm is *-into*)
     #:
     winIdParam = Qt.Property(str, getWinIdParam, setWinIdParam,
-                                 resetWinIdParam)
+                             resetWinIdParam)
 
     #:
     #: A space separated list of extra parameters
     #:
-    extraParams = Qt.Property(str, getExtraParams, setExtraParams,
-                              resetExtraParams)
+    arguments = Qt.Property(str, getArguments, setArguments, resetArguments)
 
     #:
     #: Specifies if widget is has auto restart mode enabled or not
@@ -455,15 +515,9 @@ class XCommandWindow(Qt.QMainWindow):
         super(XCommandWindow, self).__init__(parent=parent, flags=flags)
         x11 = self.Widget(parent=self, designMode=designMode, **kwargs)
         self.setCentralWidget(x11)
-        toolBar = self.addToolBar("Actions")
-        self.__actionsToolBar = weakref.ref(toolBar)
-        action_factory = ActionFactory()
-        self.__restartAction = action_factory.createAction(self,
-                                      text="Restart",
-                                      icon=getThemeIcon("view-refresh"),
-                                      tip="restart the current command",
-                                      triggered=self.restart)
-        toolBar.addAction(self.__restartAction)
+        self.__actionsToolBar = toolBar = self.addToolBar("Actions")
+        for action in x11.actions():
+            toolBar.addAction(action)
 
     def XWidget(self):
         """
@@ -511,14 +565,14 @@ class XCommandWindow(Qt.QMainWindow):
         self.XWidget().resetWinIdParam()
 
     @Qt.Slot(str)
-    def setExtraParams(self, params):
-        self.XWidget().extraParams = params
+    def setArguments(self, arguments):
+        self.XWidget().arguments = arguments
 
-    def getExtraParams(self):
-        return self.XWidget().extraParams
+    def getArguments(self):
+        return self.XWidget().arguments
 
-    def resetExtraParams(self):
-        self.XWidget().resetExtraParams()
+    def resetArguments(self):
+        self.XWidget().resetArguments()
 
     @Qt.Slot(bool)
     def setAutoRestart(self, yesno):
@@ -558,9 +612,9 @@ class XCommandWindow(Qt.QMainWindow):
     getWinIdParam.__doc__ = Widget.getWinIdParam.__doc__
     setWinIdParam.__doc__ = Widget.setWinIdParam.__doc__
     resetWinIdParam.__doc__ = Widget.resetWinIdParam.__doc__
-    setExtraParams.__doc__ = Widget.setExtraParams.__doc__
-    getExtraParams.__doc__ = Widget.getExtraParams.__doc__
-    resetExtraParams.__doc__ = Widget.resetExtraParams.__doc__
+    setArguments.__doc__ = Widget.setArguments.__doc__
+    getArguments.__doc__ = Widget.getArguments.__doc__
+    resetArguments.__doc__ = Widget.resetArguments.__doc__
     setAutoRestart.__doc__ = Widget.setAutoRestart.__doc__
     getAutoRestart.__doc__ = Widget.getAutoRestart.__doc__
     resetAutoRestart.__doc__ = Widget.resetAutoRestart.__doc__
@@ -578,13 +632,13 @@ class XCommandWindow(Qt.QMainWindow):
     #: window ID (ex: for xterm is *-into*)
     #:
     winIdParam = Qt.Property(str, getWinIdParam, setWinIdParam,
-                                 resetWinIdParam)
+                             resetWinIdParam)
 
     #:
     #: A space separated list of extra parameters
     #:
-    extraParams = Qt.Property(str, getExtraParams, setExtraParams,
-                              resetExtraParams)
+    arguments = Qt.Property(str, getArguments, setArguments, resetArguments)
+
     #:
     #: Specifies if widget is has auto restart mode enabled or not
     #:
@@ -597,6 +651,8 @@ class XCommandWindow(Qt.QMainWindow):
                              resetAutoUpdate)
 
 def main():
+    import taurus
+    taurus.setLogLevel(taurus.Debug)
     from taurus.qt.qtgui.application import TaurusApplication
 
     app = TaurusApplication([])

@@ -74,7 +74,7 @@ class XTermWidget(XCommandWidget):
 
         app = TaurusApplication()
         term = XTermWidget()
-        term.xtermCommand = "python"
+        term.xtermcommand = "python"
         term.show()
         term.start()
         app.exec_()
@@ -86,30 +86,34 @@ class XTermWidget(XCommandWidget):
     to explicitly call `start()`.
     """
 
+    DefaultCommand = 'xterm'
+    DefaultWinIdParam = '-into'
+
     DefaultUserHost = ''
     DefaultXTermCommand = ''
-    DefaultWinIdParam = '-into'
+    DefaultXTermArguments = ''
 
     def __init__(self, parent=None, designMode=False):
         XCommandWidget.__init__(self, parent=parent, designMode=designMode)
-        self.__userHost = None
-        self.__xtermCommand = None
-        self.command = 'xterm'
+        self.__userHost = self.DefaultUserHost
+        self.__xtermCommand = self.DefaultXTermCommand
+        self.__xtermArguments = self.DefaultXTermArguments
         self.resetUserHost()
         self.resetXTermCommand()
 
-    def _getExtraParams(self):
+    def _buildArguments(self):
         userHost = str(self.userHost)
-        xtermCmd = str(self.xtermCommand)
-        result = XCommandWidget._getExtraParams(self)
-        if xtermCmd:
-            result.append('-e')
+        xtermCommand = str(self.xtermCommand)
+        arguments = XCommandWidget._buildArguments(self)
+        arguments.extend(self.xtermArguments.split())
+        if xtermCommand:
+            arguments.append('-e')
             if userHost:
-                tmpcmd = ['ssh', '-X', '-t', self.userHost, '.', '~/.profile', ';']
-                result.extend(tmpcmd)
-            xtermCmd = xtermCmd.split()
-            result.extend(xtermCmd)
-        return result
+                tmpcmd = ['ssh', '-X', '-t', self.userHost]
+                arguments.extend(tmpcmd)
+            xtermCommand = xtermCommand.split()
+            arguments.extend(xtermCommand)
+        return arguments
 
     @classmethod
     def getQtDesignerPluginInfo(cls):
@@ -137,6 +141,8 @@ class XTermWidget(XCommandWidget):
         :param userHost: user and host (ex: homer@nano)
         :type userHost: str
         """
+        if userHost == self.__userHost:
+            return
         self.__userHost = userHost
         self.commandChanged.emit()
 
@@ -164,6 +170,8 @@ class XTermWidget(XCommandWidget):
         :param cmd: command to run on xterm (ex: python)
         :type cmd: str
         """
+        if cmd == self.__xtermCommand:
+            return
         self.__xtermCommand = cmd
         self.commandChanged.emit()
 
@@ -174,18 +182,79 @@ class XTermWidget(XCommandWidget):
         """
         self.setXTermCommand(self.DefaultXTermCommand)
 
+    @Qt.Slot(str)
+    def setXTermArguments(self, arguments):
+        """
+        Sets extra parameters to the command line (they should be space
+        separated). Emits *commandChanged* signal.
+
+        :param arguments: extra parameters string
+        :type arguments: str
+        """
+        if arguments == self.__xtermArguments:
+            return
+        self.__xtermArguments = arguments
+        self.commandChanged.emit()
+
+    def getXTermArguments(self):
+        """
+        Returns the current extra parameters string.
+
+        :return: the current extra parameters string
+        :rtype: str
+        """
+        return str(self.__xtermArguments)
+
+    def resetXTermArguments(self):
+        """
+        Resets the extra paramters to default. Emits *commandChanged* signal.
+        """
+        self.setXTermArguments(self.DefaultXTermArguments)
+
+    #:
+    #: This property holds the widget command name (ex: xterm)
+    #:
+    command = Qt.Property(str, XCommandWidget.getCommand,
+                          XCommandWidget.setCommand,
+                          XCommandWidget.resetCommand,
+                          designable=False)
+
+    #:
+    #: This property holds the command parameter name which specifies the
+    #: window ID (ex: for xterm is *-into*)
+    #:
+    winIdParam = Qt.Property(str, XCommandWidget.getWinIdParam,
+                             XCommandWidget.setWinIdParam,
+                             XCommandWidget.resetWinIdParam,
+                             designable=False)
+
+    #:
+    #: A space separated list of extra parameters
+    #:
+    arguments = Qt.Property(str, XCommandWidget.getArguments,
+                            XCommandWidget.setArguments,
+                            XCommandWidget.resetArguments,
+                            designable=False)
+
     #:
     #: Specifies user and host if xterm is to connect to a remote host (uses
     #: ssh)
     #:
     userHost = Qt.Property(str, getUserHost, setUserHost,
                            resetUserHost, doc="<user>@<host>")
+
     #:
     #: Specifies the command to run on the xterm. Use empty string (default for
     #: no command (ex: python)
     #:
     xtermCommand = Qt.Property(str, getXTermCommand, setXTermCommand,
                                resetXTermCommand, doc="Command to run on xterm")
+
+    #:
+    #: A space separated list of extra parameters
+    #:
+    xtermArguments = Qt.Property(str, getXTermArguments, setXTermArguments,
+                                 resetXTermArguments)
 
 
 class XTermWindow(XCommandWindow):
@@ -219,17 +288,27 @@ class XTermWindow(XCommandWindow):
         self.XWidget().userHost = userHost
 
     def resetUserHost(self):
-        self.XWidget().resetUserHost
+        self.XWidget().resetUserHost()
 
     def getXTermCommand(self):
         return str(self.XWidget().xtermCommand)
 
-    @Qt.Slot()
+    @Qt.Slot(str)
     def setXTermCommand(self, cmd):
         self.XWidget().xtermCommand = cmd
 
     def resetXTermCommand(self):
         self.XWidget().resetXTermCommand()
+
+    def getXTermArguments(self):
+        return str(self.XWidget().xtermArguments)
+
+    @Qt.Slot()
+    def setXTermArguments(self, cmd):
+        self.XWidget().xtermArguments = cmd
+
+    def resetXTermArguments(self):
+        self.XWidget().resetXTermArguments()
 
     @classmethod
     def getQtDesignerPluginInfo(cls):
@@ -245,6 +324,34 @@ class XTermWindow(XCommandWindow):
     getXTermCommand.__doc__ = Widget.getXTermCommand.__doc__
     setXTermCommand.__doc__ = Widget.setXTermCommand.__doc__
     resetXTermCommand.__doc__ = Widget.resetXTermCommand.__doc__
+    getXTermArguments.__doc__ = Widget.getXTermArguments.__doc__
+    setXTermArguments.__doc__ = Widget.setXTermArguments.__doc__
+    resetXTermArguments.__doc__ = Widget.resetXTermArguments.__doc__
+
+    #:
+    #: This property holds the widget command name (ex: xterm)
+    #:
+    command = Qt.Property(str, XCommandWindow.getCommand,
+                          XCommandWindow.setCommand,
+                          XCommandWindow.resetCommand,
+                          designable=False)
+
+    #:
+    #: This property holds the command parameter name which specifies the
+    #: window ID (ex: for xterm is *-into*)
+    #:
+    winIdParam = Qt.Property(str, XCommandWindow.getWinIdParam,
+                             XCommandWindow.setWinIdParam,
+                             XCommandWindow.resetWinIdParam,
+                             designable=False)
+
+    #:
+    #: A space separated list of extra parameters
+    #:
+    arguments = Qt.Property(str, XCommandWindow.getArguments,
+                            XCommandWindow.setArguments,
+                            XCommandWindow.resetArguments,
+                            designable=False)
 
     #:
     #: Specifies user and host if xterm is to connect to a remote host (uses
@@ -259,6 +366,12 @@ class XTermWindow(XCommandWindow):
     #:
     xtermCommand = Qt.Property(str, getXTermCommand, setXTermCommand,
                                resetXTermCommand, doc="Command to run on xterm")
+
+    #:
+    #: A space separated list of extra parameters
+    #:
+    xtermArguments = Qt.Property(str, getXTermArguments, setXTermArguments,
+                                 resetXTermArguments)
 
 
 def main():
