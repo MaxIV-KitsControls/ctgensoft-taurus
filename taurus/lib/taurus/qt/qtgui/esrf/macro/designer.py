@@ -48,7 +48,7 @@ class ArgumentEditorDialog(Qt.QDialog):
         ui.argument_down_button.setIcon(getIcon("go-down"))
 
         ui.add_enum_button.setIcon(getIcon("list-add"))
-        ui.remove_enum_button.setIcon(getIcon("list-remove"))        
+        ui.remove_enum_button.setIcon(getIcon("list-remove"))
 
         ui.name_lineedit.textEdited.connect(self.__onNameChanged)
         ui.dtype_combobox.currentIndexChanged.connect(self.__onDTypeChanged)
@@ -62,7 +62,7 @@ class ArgumentEditorDialog(Qt.QDialog):
         ui.remove_enum_button.clicked.connect(self.__onRemoveEnum)
 
         self.accepted.connect(self.__onAccepted)
-        
+
     def __addArgument(self, argument, row=None):
         arg_list = self.ui.argument_list
         item = Qt.QListWidgetItem(argument.name)
@@ -103,7 +103,7 @@ class ArgumentEditorDialog(Qt.QDialog):
 
     def __onArgumentDown(self, checked=False):
         arg_list = self.ui.argument_list
-        row = arg_list.currentRow()        
+        row = arg_list.currentRow()
         item = arg_list.takeItem(row)
         arg_list.insertItem(row+1, item)
         arg_list.setCurrentRow(row+1)
@@ -130,33 +130,34 @@ class ArgumentEditorDialog(Qt.QDialog):
             arg = current.data(Qt.Qt.UserRole)
         else:
             arg = self.EmptyArgument
+        arg = Qt.from_qvariant(arg)
         self.__updateFormFromArgument(arg)
-        
+
     def __getEnumWidgetData(self):
         table = self.ui.enum_list
         result = []
         for row in range(table.rowCount()):
-            value = table.item(row, 0).text()
-            label = table.item(row, 1).text()
+            value = str(table.item(row, 0).text())
+            label = str(table.item(row, 1).text())
             result.append((value, label))
         return result
 
     def __updateArgumentFromForm(self, arg):
         ui = self.ui
-        dtype = ui.dtype_combobox.currentText()
-        arg.name = ui.name_lineedit.text() or None
+        dtype = str(ui.dtype_combobox.currentText())
+        arg.name = str(ui.name_lineedit.text()) or None
         if dtype == 'enum':
             arg.dtype = self.__getEnumWidgetData()
         else:
             arg.dtype = dtype
-        arg.label = ui.label_lineedit.text() or None
-        arg.unit = ui.unit_lineedit.text() or None
-        arg.tooltip = ui.tooltip_lineedit.text() or None
-        arg.statustip = ui.statustip_lineedit.text() or None        
-        arg.icon = ui.icon_lineedit.text() or None
-        arg.default_value = ui.default_value_lineedit.text() or None
-        arg.min_value = ui.min_value_lineedit.text() or None
-        arg.max_value = ui.max_value_lineedit.text() or None        
+        arg.label = str(ui.label_lineedit.text() or None
+        arg.unit = str(ui.unit_lineedit.text() or None
+        arg.tooltip = str(ui.tooltip_lineedit.text() or None
+        arg.statustip = str(ui.statustip_lineedit.text() or None
+        arg.icon = str(ui.icon_lineedit.text() or None
+        arg.default_value = str(ui.default_value_lineedit.text() or None
+        arg.min_value = str(ui.min_value_lineedit.text() or None
+        arg.max_value = str(ui.max_value_lineedit.text() or None
 
     def __updateFormFromArgument(self, arg):
         ui = self.ui
@@ -184,7 +185,7 @@ class ArgumentEditorDialog(Qt.QDialog):
             for i, (value, label) in enumerate(arg.enum):
                 ui.enum_list.insertRow(i)
                 item = Qt.QTableWidgetItem(value)
-                ui.enum_list.setItem(i, 0, item)                
+                ui.enum_list.setItem(i, 0, item)
                 item = Qt.QTableWidgetItem(label)
                 ui.enum_list.setItem(i, 1, item)
 
@@ -201,7 +202,7 @@ class ArgumentEditorDialog(Qt.QDialog):
     def __items(self):
         arg_list = self.ui.argument_list
         return [arg_list.item(row) for row in range(arg_list.count())]
-    
+
     def getArguments(self):
         return [item.data(Qt.Qt.UserRole) for item in self.__items()]
 
@@ -227,7 +228,7 @@ class MacroTaskMenu(TaurusModelTaskMenu):
         if result == Qt.QDialog.Accepted:
             arguments = map(str, dialog.getArguments())
             setWidgetProperty(self.widget, "arguments", arguments)
-            
+
 
 
 def main():
