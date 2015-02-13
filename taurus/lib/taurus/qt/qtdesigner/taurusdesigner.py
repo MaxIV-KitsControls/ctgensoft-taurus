@@ -85,7 +85,8 @@ def get_taurus_designer_path():
     taurus_qt_designer_path = os.path.join(taurus_path, 'qt', 'qtdesigner')
     return [taurus_qt_designer_path]
 
-def qtdesigner_prepare_taurus(env=None, taurus_extra_path=None):
+def qtdesigner_prepare_taurus(env=None, taurus_extra_path=None,
+                              taurus_extra_package=None):
 
     # Tell Qt Designer where it can find the directory containing the plugins
     if env is None:
@@ -100,6 +101,11 @@ def qtdesigner_prepare_taurus(env=None, taurus_extra_path=None):
     if taurus_extra_path is not None:
         append_or_create_env(env, "TAURUSQTDESIGNERPATH", taurus_extra_path)
         append_or_create_env(env, "PYTHONPATH", taurus_extra_path)
+
+    # Set TAURUSQTDESIGNERPACKAGE
+    if taurus_extra_package is not None:
+        append_or_create_env(env, "TAURUSQTDESIGNERPACKAGE",
+                             taurus_extra_package)
 
     #print "PYTHONPATH=%s" % get_env(env, "PYTHONPATH")
     #print "PYQTDESIGNERPATH=%s" % get_env(env, "PYQTDESIGNERPATH")
@@ -127,6 +133,8 @@ def main(env=None):
     parser = optparse.OptionParser(version=version, usage=usage, description=description)
     parser.add_option("--taurus-path", dest="tauruspath", default="",
                       help="additional directories to look for taurus widgets")
+    parser.add_option("--taurus-package", dest="tauruspackage", default="",
+                      help="additional packages containing widgets")
     parser.add_option("--qt-designer-path", dest="pyqtdesignerpath", default="",
                       help="additional directories to look for python qt widgets")
 
@@ -136,8 +144,15 @@ def main(env=None):
     # Set TAURUSQTDESIGNERPATH
     if len(options.tauruspath) > 0:
         taurus_extra_path = options.tauruspath
+
+    taurus_extra_package = None
+    # Set TAURUSQTDESIGNERPACKAGE
+    if len(options.tauruspackage) > 0:
+        taurus_extra_package = options.tauruspackage
     
-    env = qtdesigner_prepare_taurus(env=env, taurus_extra_path=taurus_extra_path)
+    env = qtdesigner_prepare_taurus(env=env,
+                                    taurus_extra_path=taurus_extra_path,
+                                    taurus_extra_package=taurus_extra_package)
 
     sys.exit(qtdesigner_start(args, env=env))
 

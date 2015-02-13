@@ -32,6 +32,7 @@ __all__ = ["TaurusWidgetFactory", "getWidgetsOfType"]
 __docformat__ = 'restructuredtext'
 
 import imp
+import sys
 import os.path
 
 from taurus.external.qt import Qt
@@ -140,11 +141,17 @@ class TaurusWidgetFactory(Singleton, Logger):
 
     def _addExtraTaurusWidgets(self, taurus_ret, qt_widgets):
         designer_path = os.environ.get('TAURUSQTDESIGNERPATH')
-        if designer_path is None:
-            return taurus_ret
-        designer_path = designer_path.split(os.path.pathsep)
-        for path in designer_path:
-            self._addExtraTaurusWidgetsPath(taurus_ret, qt_widgets, path)
+        if designer_path is not None:
+            designer_path = designer_path.split(os.path.pathsep)
+            for path in designer_path:
+                self._addExtraTaurusWidgetsPath(taurus_ret, qt_widgets, path)
+
+        designer_packages = os.environ.get('TAURUSQTDESIGNERPACKAGE')
+        if designer_packages is not None:
+            package_names = designer_packages.split(os.path.pathsep)
+            for package_name in package_names:
+                self._addExtraTaurusWidgetsPackage(taurus_ret, qt_widgets,
+                                                   package_name)
     
     def _addExtraTaurusWidgetsPath(self, taurus_ret, qt_widgets, path):
         self.debug("Trying extra taurus widgets in %s", path)
@@ -187,7 +194,58 @@ class TaurusWidgetFactory(Singleton, Logger):
                             self.debug("registered taurus widget %s", dir_name)
                 except Exception, e:
                     pass
-        
+
+    def _addExtraTaurusWidgetsPackage(self, taurus_ret, qt_widgets,
+                                      package_name):
+        self.debug("Trying extra taurus widgets from package", package_name)
+        try:
+            __import__(package_name)
+            package = sys.modules[package_name]
+            package_dir = os.path.realpath(os.path.dirname(package.__file__))
+        except Exception as e:
+            self.debug("Could not load extra package %s:%s", package_name, e)
+            return
+        objs_to_try = []
+        for member_name in dir(package):
+            try:
+                member = getattr(package, member_name)
+            except:
+                continue
+            objs_to_try.append((member_name, member, package, package_name))
+
+        elems = os.listdir(package_dir)
+        for elem in elems:
+            full_elem = os.path.join(package_dir, elem)
+            m_name, ext = os.path.splitext(elem)
+            if os.path.isdir(full_elem) or ext == '.py':
+                sub_package_name = package_name + "." + m_name
+                try:
+                    __import__(sub_package_name)
+                    sub_package = sys.modules[sub_package_name]
+                except:
+                    continue
+                for member_name in dir(sub_package):
+                    try:
+                        member = getattr(sub_package, member_name)
+                    except:
+                        continue
+                    objs_to_try.append((member_name, member, sub_package,
+                                        sub_package_name))
+
+        for member_name, member, package, package_name in objs_to_try:
+            try:
+                if not issubclass(member, Qt.QWidget):
+                    continue
+                qt_widgets[member_name] = package_name, member
+                if issubclass(attr, taurus.qt.qtgui.base.TaurusBaseWidget):
+                    qt_info = attr.getQtDesignerPluginInfo()
+                    taurus_ret[member_name] = qt_info['module'], member
+                    self.debug("registered taurus widget %s", member_name)
+                else:
+                    self.debug("registered qt widget %s", member_name)
+            except:
+                pass
+
     def getWidgets(self):
         return self._qt_widgets
 
