@@ -164,8 +164,8 @@ class TaurusWidgetFactory(Singleton, Logger):
             try:
                 self.debug("Trying to load extra module %s", m_name)
                 mod = imp.load_module(m_name, f, fname, data)
-            except ImportError, ie:
-                self.debug("Could not load extra module %s:%s", m_name, ie)
+            except Exception as e:
+                self.debug("Could not load extra module %s:%s", m_name, e)
                 continue
             dir_names = dir(mod)
             for dir_name in dir_names:
