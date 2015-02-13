@@ -197,14 +197,18 @@ class ArgumentEditorDialog(Qt.QDialog):
     def __onAccepted(self):
         item = self.ui.argument_list.currentItem()
         if item:
-            self.__updateArgumentFromForm(item.data(Qt.Qt.UserRole))
+            arg = Qt.from_qvariant(item.data(Qt.Qt.UserRole))
+            self.__updateArgumentFromForm(arg)
 
     def __items(self):
         arg_list = self.ui.argument_list
         return [arg_list.item(row) for row in range(arg_list.count())]
 
     def getArguments(self):
-        return [item.data(Qt.Qt.UserRole) for item in self.__items()]
+        result = []
+        for item in self.__items():
+            result.append(Qt.from_qvariant(item.data(Qt.Qt.UserRole)))
+        return result
 
 
 class MacroTaskMenu(TaurusModelTaskMenu):
