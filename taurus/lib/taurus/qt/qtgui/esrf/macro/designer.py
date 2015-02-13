@@ -150,14 +150,14 @@ class ArgumentEditorDialog(Qt.QDialog):
             arg.dtype = self.__getEnumWidgetData()
         else:
             arg.dtype = dtype
-        arg.label = str(ui.label_lineedit.text() or None
-        arg.unit = str(ui.unit_lineedit.text() or None
-        arg.tooltip = str(ui.tooltip_lineedit.text() or None
-        arg.statustip = str(ui.statustip_lineedit.text() or None
-        arg.icon = str(ui.icon_lineedit.text() or None
-        arg.default_value = str(ui.default_value_lineedit.text() or None
-        arg.min_value = str(ui.min_value_lineedit.text() or None
-        arg.max_value = str(ui.max_value_lineedit.text() or None
+        arg.label = str(ui.label_lineedit.text()) or None
+        arg.unit = str(ui.unit_lineedit.text()) or None
+        arg.tooltip = str(ui.tooltip_lineedit.text()) or None
+        arg.statustip = str(ui.statustip_lineedit.text()) or None
+        arg.icon = str(ui.icon_lineedit.text()) or None
+        arg.default_value = str(ui.default_value_lineedit.text()) or None
+        arg.min_value = str(ui.min_value_lineedit.text()) or None
+        arg.max_value = str(ui.max_value_lineedit.text()) or None
 
     def __updateFormFromArgument(self, arg):
         ui = self.ui
