@@ -498,9 +498,25 @@ class SpecXTermWidget(XTermWidget):
     Spec xterm widget.
 
     In master mode:
+        simply executes spec executable
+    In master shared mode:
         reattach a session and if necessary detach or even create it first.
     In slave mode:
-        Attach to a not detached spec session (Multi display mode)
+        Attach to a not detached spec session
+
+    Example of starting a *fourc* spec session on the local machine::
+
+    from taurus.external.qt import Qt
+    from taurus.qt.qtgui.application import TaurusApplication
+    from taurus.qt.qtgui.esrf.spec import SpecXTermWidget
+
+    app = TaurusApplication()
+    term = SpecXTermWidget()
+    term.specCommand = 'fourc'
+    term.start()
+    term.show()
+    app.exec_()
+
     """
 
     class SpecSessionType(Enum):
