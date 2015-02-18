@@ -248,8 +248,6 @@ class TaurusWidgetPlugin(QtDesigner.QPyDesignerCustomWidgetPlugin):
         elif isinstance(icon, Qt.QIcon):
             return icon
         else:
-            if not icon.startswith(":"):
-                icon = ':/designer/%s' % icon
             import taurus.qt.qtgui.resource
             return taurus.qt.qtgui.resource.getIcon(icon)
     
