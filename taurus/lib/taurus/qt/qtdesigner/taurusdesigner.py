@@ -111,17 +111,22 @@ def qtdesigner_prepare_taurus(env=None, taurus_extra_path=None,
     #print "PYQTDESIGNERPATH=%s" % get_env(env, "PYQTDESIGNERPATH")
     return env
 
-def qtdesigner_start(args, env=None):
-    # Start Designer.
-    designer_bin = get_qtdesigner_bin()
-
+def qtdesigner_process(env=None):
     designer = QtCore.QProcess()
     designer.setProcessChannelMode(QtCore.QProcess.ForwardedChannels)
     designer.setEnvironment(env)
-    designer.start(designer_bin, args)
-    designer.waitForFinished(-1)
+    return designer
 
-    return designer.exitCode()
+def qtdesigner_start(args, env=None, wait_for_finished=True):
+    # Start Designer.
+    designer_bin = get_qtdesigner_bin()
+    designer = qtdesigner_process(env=env)
+    designer.start(designer_bin, args)
+    if wait_for_finished:
+        designer.waitForFinished(-1)
+        return designer.exitCode()
+    else:
+        return designer
 
 def main(env=None):
     from taurus.core.util.log import Logger
