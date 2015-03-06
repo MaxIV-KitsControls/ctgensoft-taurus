@@ -135,12 +135,13 @@ class AxisWidget(TaurusWidget):
     """
 
     _DefaultStepButtonOrientation = Qt.Qt.Horizontal
-    _DefaultButtonSize = Qt.QSize(24, 24)
+    _DefaultButtonSize = Qt.QSize(16, 16)
 
     stepSizeChanged = Qt.Signal(float, str)
 
     def __init__(self, parent=None, designMode=False):
         self.__customLabel = None
+        self.__iconSize = self._DefaultButtonSize
         self.__stepButtonOrientation = self._DefaultStepButtonOrientation
         TaurusWidget.__init__(self, parent)
         self.loadUi()
@@ -161,8 +162,6 @@ class AxisWidget(TaurusWidget):
         ui.readWriteWidget.setReadWidget(ui.positionLabel)
         ui.readWriteWidget.setWriteWidget(ui.positionEdit)
         ui.readWritePanel.layout().addWidget(ui.readWriteWidget)
-        h = self._DefaultButtonSize.height()
-        ui.readWriteWidget.setMinimumHeight(h)
 
         # initialize step buttton panel with step up and step down buttons
         stepButtonPanelLayout = Qt.QBoxLayout(Qt.QBoxLayout.LeftToRight,
@@ -225,12 +224,7 @@ class AxisWidget(TaurusWidget):
         ui.stopToolButton.setIcon(getThemeIcon("media-playback-stop"))
 
         # need to resize button icon size because of some styles (windows, kde)
-        ui.stepDownButton.setIconSize(self._DefaultButtonSize)
-        ui.stepUpButton.setIconSize(self._DefaultButtonSize)
-        ui.stepMenuToolButton.setIconSize(self._DefaultButtonSize)
-        ui.refPointsMenuToolButton.setIconSize(self._DefaultButtonSize)
-        ui.menuToolButton.setIconSize(self._DefaultButtonSize)
-        ui.stopToolButton.setIconSize(self._DefaultButtonSize)
+        self.__updateIconSize()
 
     def __onExpertPanelTriggered(self, checked=False):
         dialog = Qt.QDialog(self)
@@ -247,24 +241,39 @@ class AxisWidget(TaurusWidget):
         dialog.raise_()
         dialog.activateWindow()
 
+    def __updateIconSize(self):
+        ui, iconSize = self.ui, self.__iconSize
+        ui.stepDownButton.setIconSize(iconSize)
+        ui.stepUpButton.setIconSize(iconSize)
+        ui.stepMenuToolButton.setIconSize(iconSize)
+        ui.refPointsMenuToolButton.setIconSize(iconSize)
+        ui.menuToolButton.setIconSize(iconSize)
+        ui.stopToolButton.setIconSize(iconSize)
+        stepSize = iconSize
+        if self.__stepButtonOrientation == Qt.Qt.Vertical:
+            stepSize = Qt.QSize(8, 8)
+        ui.stepDownButton.setIconSize(stepSize)
+        ui.stepUpButton.setIconSize(stepSize)
+        ui.readWriteWidget.setMinimumHeight(iconSize.height())
+
     def __updateStepButtonPanel(self):
         # update the step button panel according to the orientation
         # (horizontal/vertical step down/up buttons)
         ui = self.ui
         layout = ui.stepButtonPanel.layout()
         orientation = self.__stepButtonOrientation
+        iconSize = self.__iconSize
         if orientation == Qt.Qt.Horizontal:
             direction = Qt.QBoxLayout.LeftToRight
             ui.stepDownButton.setArrowType(Qt.Qt.LeftArrow)
-            ui.stepDownButton.setIconSize(self._DefaultButtonSize)
             ui.stepUpButton.setArrowType(Qt.Qt.RightArrow)
-            ui.stepUpButton.setIconSize(self._DefaultButtonSize)
         else:
+            iconSize = Qt.QSize(8, 8)
             direction = Qt.QBoxLayout.BottomToTop
             ui.stepDownButton.setArrowType(Qt.Qt.DownArrow)
-            ui.stepDownButton.setIconSize(Qt.QSize(8, 8))
             ui.stepUpButton.setArrowType(Qt.Qt.UpArrow)
-            ui.stepUpButton.setIconSize(Qt.QSize(8, 8))
+        ui.stepDownButton.setIconSize(iconSize)
+        ui.stepUpButton.setIconSize(iconSize)
         layout.setDirection(direction)
 
     def __addStep(self, qstep):
@@ -580,6 +589,18 @@ class AxisWidget(TaurusWidget):
                                     setStopButtonVisible,
                                     resetStopButtonVisible)
 
+    def getIconSize(self):
+        return self.__iconSize
+
+    @Qt.Slot("QSize")
+    def setIconSize(self, iconSize):
+        self.__iconSize = iconSize
+        self.__updateIconSize()
+
+    def resetIconSize(self):
+        self.setIconSize(self._DefaultIconSize)
+
+    iconSize = Qt.Property("QSize", getIconSize, setIconSize, resetIconSize)
 
     @classmethod
     def getQtDesignerPluginInfo(cls):
