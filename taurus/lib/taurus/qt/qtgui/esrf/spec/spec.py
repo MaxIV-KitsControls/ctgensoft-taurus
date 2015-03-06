@@ -687,6 +687,7 @@ class SpecXTermWidget(XTermWidget):
         if session == self.__specSessionType:
             return
         if not isinstance(session, SpecXTermWidget.SpecSessionType):
+            session = str(session)
             slower = session.lower()
             for i in SpecXTermWidget.SpecSessionType:
                 if i.name.lower() == slower or i.value == slower:
