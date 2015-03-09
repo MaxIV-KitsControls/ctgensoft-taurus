@@ -2,9 +2,9 @@
 
 ##############################################################################
 ##
-## This file is part of Taurus, a Tango User Interface Library
+## This file is part of Taurus
 ##
-## http://www.tango-controls.org/static/taurus/latest/doc/html/index.html
+## http://taurus-scada.org
 ##
 ## Copyright 2011 CELLS / ALBA Synchrotron, Bellaterra, Spain
 ##
@@ -54,17 +54,17 @@ class Widgets:
 
 class _Assistant(Qt.QProcess):
     """The help assistant class"""
-    
+
     def __init__(self, collection_file, parent=None):
-        super(_Assistant, self).__init__(parent)
+        Qt.QProcess.__init__(self, parent)
         self.__collection_file = collection_file
 
     def start(self):
         if self.isRunning():
             return
         args = ["-enableRemoteControl",
-                "-collectionFile", self.__collection_file]
-        super(_Assistant, self).start("assistant", args)
+                "-collectionFile", self.__collection_file]        
+        Qt.QProcess.start(self, "assistant", args)
 
     def isRunning(self):
         return self.state() == Qt.QProcess.Running
@@ -73,30 +73,30 @@ class _Assistant(Qt.QProcess):
         if not self.isRunning():
             raise Exception("Assistant is not running")
         self.write(cmd + "\n")
-        
+
     def assistantShow(self, widget):
         self.__send("show " + widget)
 
     def assistantHide(self, widget):
         self.__send("hide " + widget)
-        
+
     def assistantSetSource(self, url):
         self.__send("setSource " + url)
 
     def assistantActivateKeyword(self, keyword):
-        self.__send("activateKeyword " + keyword)    
+        self.__send("activateKeyword " + keyword)
 
     def assistantActivateIdentifier(self, id):
-        self.__send("activateIdentifier " + id)    
+        self.__send("activateIdentifier " + id)
 
     def assistantSyncContents(self):
-        self.__send("syncContents")    
+        self.__send("syncContents")
 
     def assistantSetCurrentFilter(self, filter):
-        self.__send("setCurrentFilter " + filter)    
+        self.__send("setCurrentFilter " + filter)
 
     def assistantExpandToc(self, depth):
-        self.__send("expandToc " + str(depth))    
+        self.__send("expandToc " + str(depth))
 
     def assistantRegister(self, help_file):
         self.__send("register " + help_file)
@@ -106,7 +106,7 @@ class _Assistant(Qt.QProcess):
 
 
 __ASSISTANTS = {}
-def Assistant(collection_file, auto_create=True):
+def Assistant(collection_file, auto_create=True, parent=None):
     """
     The :func:`Assistant` will create a subprocess displaying the
     help system for the given QtHelp collection file (.qhc).
@@ -126,42 +126,44 @@ def Assistant(collection_file, auto_create=True):
     if not auto_create:
         return assistant
     if assistant is None:
-        def finished(exitCode, exitStatus):
+        def finished(*args):
             if __ASSISTANTS and collection_file in __ASSISTANTS:
                 del __ASSISTANTS[collection_file]
-        assistant = _Assistant(collection_file)
+        assistant = _Assistant(collection_file, parent=parent)
         __ASSISTANTS[collection_file] = assistant
-        assistant.finished.connect(finished)
+        assistant.connect(assistant, Qt.SIGNAL('finished(int)'), finished)
     return assistant
 
 
 def main():
-    assistant = None
-    def go():
-        assistant = Assistant(textEdit.text())
-        assistant.start()
-        assistant.waitForStarted()
-        assistant.assistantShow(Widgets.bookmarks)
-    def terminate():
-        assistant = Assistant(textEdit.text(), auto_create=False)
-        if assistant:
-            assistant.terminate()
+    import sys
     
     app = Qt.QApplication([])
     window = Qt.QWidget()
     layout = Qt.QHBoxLayout(window)
-    goButton = Qt.QPushButton("Activate help")
-    terminateButton = Qt.QPushButton("Close help")
-    textEdit = Qt.QLineEdit()
+    goButton = Qt.QPushButton("Activate help", window)
+    terminateButton = Qt.QPushButton("Close help", window)
+    textEdit = Qt.QLineEdit(window)
     layout.addWidget(textEdit)
     layout.addWidget(goButton)
     layout.addWidget(terminateButton)
-    goButton.clicked.connect(go)
-    terminateButton.clicked.connect(terminate)
+    
+    def go():
+        assistant = Assistant(textEdit.text(), parent=window)
+        assistant.start()
+        assistant.waitForStarted()
+        assistant.assistantShow(Widgets.bookmarks)
+    def terminate():
+        assistant = Assistant(textEdit.text(), auto_create=False, parent=window)
+        if assistant:
+            assistant.terminate()
+    
+    
+    goButton.connect(goButton, Qt.SIGNAL('clicked()'), go)
+    terminateButton.connect(terminateButton, Qt.SIGNAL('clicked()'), terminate)
     window.show()
-    app.exec_()
+    sys.exit(app.exec_())
 
 
 if __name__ == "__main__":
     main()
-    

@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 #############################################################################
 ##
-## This file is part of Taurus, a Tango User Interface Library
+## This file is part of Taurus
 ##
-## http://www.tango-controls.org/static/taurus/latest/doc/html/index.html
+## http://taurus-scada.org
 ##
 ## Copyright 2011 CELLS / ALBA Synchrotron, Bellaterra, Spain
 ##
@@ -72,6 +72,7 @@ class BaseWidgetTestCase(object):
         self._widget = self._klass(*self.initargs, **self.initkwargs)
 
 
+@skipUnlessGui()
 class GenericWidgetTestCase(BaseWidgetTestCase):
 
     '''a base class for testing common cases of arbitrary Taurus widget classes

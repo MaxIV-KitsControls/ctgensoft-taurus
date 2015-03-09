@@ -2,9 +2,9 @@
 
 ##############################################################################
 ##
-## This file is part of Taurus, a Tango User Interface Library
+## This file is part of Taurus
 ##
-## http://www.tango-controls.org/static/taurus/latest/doc/html/index.html
+## http://taurus-scada.org
 ##
 ## Copyright 2011 CELLS / ALBA Synchrotron, Bellaterra, Spain
 ##
@@ -31,7 +31,7 @@ name and version, organization name and domain.
 
 This behaviour can be changed by setting the dialog window title
 (:meth:`~AboutDialog.setWindowTitle`) and content
-(:meth:`~AboutDialog.setText`, :meth:`~AboutDialog.setText`)
+(:meth:`~AboutDialog.setText`, :meth:`~AboutDialog.setHtml`)
 
 Example usage::
 
@@ -66,13 +66,13 @@ class AboutDialog(Qt.QDialog):
 
     This behaviour can be changed by setting the dialog window title
     (:meth:`~AboutDialog.setWindowTitle`) and content
-    (:meth:`~AboutDialog.setText`, :meth:`~AboutDialog.setText`)
-    
+    (:meth:`~AboutDialog.setText`, :meth:`~AboutDialog.setHtml`)
+
     Example usage::
 
         from taurus.external.qt import Qt
         from taurus.qt.qtgui.help import AboutDialog
-    
+
         app = Qt.QApplication([])
         app.setApplicationName("Example GUI")
         app.setApplicationVersion("1.2.3")
@@ -82,9 +82,9 @@ class AboutDialog(Qt.QDialog):
         pixmap = Qt.QIcon.fromTheme("folder-open").pixmap(64, 64)
         about_dialog.setPixmap(pixmap)
         about_dialog.exec_()
-    
+
     """
-    
+
     _Template = "<html><body><p><b>{0}</b></p>" \
                 "<p>{1}</p><p>{2}</p>" \
                 "<p><a href=\"{3}\">{2}</a></p>" \
@@ -123,7 +123,7 @@ class AboutDialog(Qt.QDialog):
 
         :return: the current dialog HTML text.
         :rtype: str
-        """        
+        """
         return self.text_browser.toHtml()
 
     @Qt.Slot(str)
@@ -133,7 +133,7 @@ class AboutDialog(Qt.QDialog):
 
         :param text: new HTML text
         :type text: str
-        """        
+        """
         self.text_browser.setHtml(html)
 
     def resetHtml(self):
@@ -148,7 +148,7 @@ class AboutDialog(Qt.QDialog):
 
         :return: the current dialog document source.
         :rtype: Qt.QUrl
-        """                
+        """
         return self.text_browser.source()
 
     @Qt.Slot(Qt.QUrl)
@@ -158,7 +158,7 @@ class AboutDialog(Qt.QDialog):
 
         :param text: new document source
         :type text: Qt.QUrl
-        """                
+        """
         self.text_browser.setSource(source)
 
     @Qt.Slot(Qt.QPixmap)
@@ -177,8 +177,8 @@ class AboutDialog(Qt.QDialog):
 
         :return: the current dialog pixmap
         :rtype: Qt.QPixmap
-        """                
-        pixmap = self.logo_widget.pixmap
+        """
+        pixmap = self.logo_widget.pixmap()
         if pixmap is None:
             pixmap = Qt.QPixmap()
         return pixmap
@@ -191,11 +191,12 @@ class AboutDialog(Qt.QDialog):
 
     @classmethod
     def getQtDesignerPluginInfo(cls):
+        from taurus.qt.qtgui.resource import getThemeIcon
         return { 'group'     : 'Taurus Help',
-                 'icon'      : Qt.QIcon.fromTheme("help"),
+                 'icon'      : getThemeIcon("help"),
                  'module'    : 'taurus.qt.qtgui.help',
                  'container' : False }
-    
+
     #: This property holds the current dialog pixmap
     #:
     #: **Access functions:**
@@ -234,7 +235,8 @@ def main():
     app.setOrganizationDomain("http://www.taurus-scada.org/")
     about_dialog = AboutDialog()
 #    about_dialog.setText(txt)
-    pixmap = Qt.QIcon.fromTheme("folder-open").pixmap(64, 64)
+    from taurus.qt.qtgui.resource import getThemeIcon
+    pixmap = getThemeIcon("folder-open").pixmap(64, 64)
     about_dialog.setPixmap(pixmap)
     about_dialog.exec_()
 

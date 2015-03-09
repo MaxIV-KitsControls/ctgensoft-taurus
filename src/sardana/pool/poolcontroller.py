@@ -4,7 +4,7 @@
 ##
 ## This file is part of Sardana
 ##
-## http://www.tango-controls.org/static/sardana/latest/doc/html/index.html
+## http://www.sardana-controls.org/
 ##
 ## Copyright 2011 CELLS / ALBA Synchrotron, Bellaterra, Spain
 ##
@@ -596,7 +596,7 @@ class PoolController(PoolBaseController):
             exc_info = sys.exc_info()
             for axis in axes:
                 element = self.get_element(axis=axis)
-                ctrl_values[element] = None, exc_info
+                ctrl_values[element] = SardanaValue(exc_info=exc_info)
             return ctrl_values
 
         for axis in axes:

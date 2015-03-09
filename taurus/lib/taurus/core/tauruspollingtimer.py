@@ -2,9 +2,9 @@
 
 #############################################################################
 ##
-## This file is part of Taurus, a Tango User Interface Library
+## This file is part of Taurus
 ## 
-## http://www.tango-controls.org/static/taurus/latest/doc/html/index.html
+## http://taurus-scada.org
 ##
 ## Copyright 2011 CELLS / ALBA Synchrotron, Bellaterra, Spain
 ## 
@@ -28,8 +28,6 @@
 __all__ = ["TaurusPollingTimer"]
 
 __docformat__ = "restructuredtext"
-
-import time
 
 from .util.log import Logger
 from .util.containers import CaselessDict
@@ -68,9 +66,7 @@ class TaurusPollingTimer(Logger):
            :return: (bool) True if the attribute is registered for polling or
                     False otherwise
         """
-        attr_dict = self.dev_dict.get(attribute.getParentObj())
-        if attr_dict is None:
-            return False
+        attr_dict = self.dev_dict.get(attribute.getParentObj(), {})
         return attribute.getSimpleName() in attr_dict
 
     def getAttributeCount(self):
@@ -112,8 +108,10 @@ class TaurusPollingTimer(Logger):
         attr_dict = self.dev_dict.get(dev)
         if attr_dict is None:
             return
-        if attr_name not in attr_dict:
+        if attr_name in attr_dict:
             del attr_dict[attr_name]
+            if not attr_dict:
+                del self.dev_dict[dev]
             self.attr_nb -= 1
         if self.attr_nb < 1:
             self.stop()
@@ -130,15 +128,8 @@ class TaurusPollingTimer(Logger):
             except Exception as e:
                 self.error("poll_asynch error")
                 self.debug("Details:", exc_info=1)
-        period = self.timer.period
         for dev, (attrs, req_id) in req_ids.items():
             try:
-		start = time.time()
                 dev.poll(attrs, req_id=req_id)
-                dt = time.time() - start
-                if dt > period:
-                    self.info("%s(%s) took too much to answer (>%s)", dev, attrs.keys(), period)
             except Exception as e:
                 self.error("poll_reply error")
-
-

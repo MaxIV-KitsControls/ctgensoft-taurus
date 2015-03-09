@@ -2,9 +2,9 @@
 
 #############################################################################
 ##
-## This file is part of Taurus, a Tango User Interface Library
+## This file is part of Taurus
 ## 
-## http://www.tango-controls.org/static/taurus/latest/doc/html/index.html
+## http://taurus-scada.org
 ##
 ## Copyright 2011 CELLS / ALBA Synchrotron, Bellaterra, Spain
 ## 
@@ -37,7 +37,7 @@ from .log import Logger
 class Timer(Logger):
     """
     Timer Object.
-
+        
     Interval in seconds (The argument may be a floating point number for
     subsecond precision).
     If strict_timing is True, the timer will try to compensate for drifting
@@ -57,11 +57,7 @@ class Timer(Logger):
         self.__start_nb = 0
         self.__thread = None
         self.__strict_timing = strict_timing
-
-    @property
-    def period(self):
-        return self.__interval        
-
+        
     def start(self):
         """ Start Timer Object """
         self.__lock.acquire()
@@ -96,8 +92,8 @@ class Timer(Logger):
                 curr_time = time.time()
                 nap = max(0, next_time - curr_time)
                 if curr_time > next_time:
-                    self.debug("loop function took more than loop interval (%ss)",
-                               self.__interval)
+                    self.warning("loop function took more than loop interval (%ss)",
+                                 self.__interval)
             next_time += self.__interval
             time.sleep(nap)
         self.__alive = False
