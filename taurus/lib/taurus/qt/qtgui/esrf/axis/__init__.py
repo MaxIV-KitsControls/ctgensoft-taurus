@@ -29,3 +29,5 @@ for the ESRF"""
 __docformat__ = 'restructuredtext'
 
 from .axis import AxisWidget
+from .tree import AxesWidgetItem
+from .tree import AxesTree
