@@ -412,9 +412,10 @@ class AxisWidget(TaurusWidget):
         self.ui.stepDownButton.setModel(model_name)
         self.ui.stepUpButton.setModel(model_name)
         self.ui.stopToolButton.setModel(model_name)
-        stepSize = Attribute(model_name + "/StepSize")
-        stepSize.addListener(self.__onStepSizeChanged)
-
+        model = self.getModelObj()
+        if model:
+            stepSize = model.getAttribute("StepSize")
+            stepSize.addListener(self.__onStepSizeChanged)
         self.ui.axisLabel.setText(self.__getAxisLabel())
         self.__updateToolTips()
 
