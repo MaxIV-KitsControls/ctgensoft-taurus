@@ -184,7 +184,7 @@ def createAction(text, parent=None, icon=None, iconText=None,
             if checked:
                 action.setChecked(True)
         if callable(checkable):
-            action.checkable.connect(checkable)
+            action.toggled.connect(checkable)
     if icon is not None:
         if not isinstance(icon, Qt.QIcon):
             icon = getIcon(icon)
