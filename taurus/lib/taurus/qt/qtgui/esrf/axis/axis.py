@@ -607,7 +607,8 @@ class AxisWidget(TaurusWidget):
     def getQtDesignerPluginInfo(cls):
         return dict(module="taurus.qt.qtgui.esrf.axis",
                     icon=":designer/motor.png",
-                    group="ESRF Widgets")
+                    group="ESRF Widgets",
+                    label="Axis Widget")
 
 
 def main():

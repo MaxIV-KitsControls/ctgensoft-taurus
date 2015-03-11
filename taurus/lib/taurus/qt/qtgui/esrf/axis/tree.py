@@ -89,7 +89,8 @@ class AxesWidgetItem(Qt.QTreeWidgetItem):
 
 
 @UILoadable(with_ui='ui')
-@QtDesignable(group="ESRF Widgets", icon=":designer/motor.png")
+@QtDesignable(group="ESRF Widgets", icon=":designer/motor.png",
+              label="Axes Tree")
 class AxesTree(Qt.QMainWindow):
 
     def __init__(self, parent=None, flags=0, designMode=False):
