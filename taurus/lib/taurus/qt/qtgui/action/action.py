@@ -158,7 +158,7 @@ def __toActionInfo(action_id):
     return action_info
 
 
-def createStandardAction(action_id, triggered=None, toggled=None):
+def createStandardAction(action_id):
     """
     Creates a standard action.
 
@@ -166,12 +166,6 @@ def createStandardAction(action_id, triggered=None, toggled=None):
         action identifier. Can be a string or a member of
         :class:`StandardAction`.
     :type action_id: str or :class:`StandardAction`
-    :param triggered: register the given callable to the action's
-                      triggered signal
-    :type triggered: callable
-    :param toggled: register the given callable to the action's
-                    toggled signal
-    :type toggled: callable
     :return: a standard QAction
     :rtype: Qt.QAction
     """
@@ -184,12 +178,10 @@ def createStandardAction(action_id, triggered=None, toggled=None):
     app_name = app.applicationName()
     toolTip = action_info.toolTip.format(app_name=app_name)
     statusTip = action_info.statusTip.format(app_name=app_name)
-    if toggled is None:
-        toggled = action_info.checkable
     return createAction(action_info.text, parent=app,
                         icon=icon, iconText=action_info.name,
                         toolTip=toolTip, statusTip=statusTip,
-                        triggered=triggered, toggled=toggled,
+                        toggled=action_info.checkable,
                         shortcut=action_info.shortcut,
                         shortcutContext=Qt.Qt.ApplicationShortcut)
 
@@ -209,7 +201,7 @@ def getStandardAction(action_id, triggered=None, toggled=None):
     :type triggered: callable
     :param toggled: register the given callable to the action's
                     toggled signal
-    :type toggled: callable
+    :type triggered: callable
     :return: a standard QAction
     :rtype: Qt.QAction
     """
