@@ -114,6 +114,10 @@ class StandardAction(Enum):
     #: Redoes action
     Redo = _AI("Redo", "Redo", "edit-redo", _KS.Redo, False, "Redo", "Redoes")
 
+    #: Print action
+    Print = _AI("Print", "Print", "document-print", _KS.Print, False,
+                "Print...", "Prints document")
+
 
 __standardActions = {}
 
