@@ -152,7 +152,7 @@ class XCommandWidget(Qt.QWidget):
                                               icon="emblem-synchronizing",
                                               toolTip="Toggle auto restart on/off",
                                               statusTip="Toggles auto restart on/off",
-                                              checkable=self.setAutoRestart)
+                                              toggled=self.setAutoRestart)
 
         self.resetAutoUpdate()
         self.resetAutoRestart()
