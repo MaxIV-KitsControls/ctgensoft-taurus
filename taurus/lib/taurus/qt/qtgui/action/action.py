@@ -62,7 +62,7 @@ class StandardAction(Enum):
     Delete = _AI("Delete", "&Delete", "edit-delete", _KS.Delete, False, "Delete", "Deletes")
     Undo = _AI("Undo", "Undo", "edit-undo", _KS.Undo, False, "Undo", "Undoes")
     Redo = _AI("Redo", "Redo", "edit-redo", _KS.Redo, False, "Redo", "Redoes")
-    Print = _AI("Print", "Print", "document-print", _KS.Print, False, "Print...", "Prints document")
+
 
 __standardActions = {}
 
