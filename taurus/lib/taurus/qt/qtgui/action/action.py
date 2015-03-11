@@ -28,6 +28,10 @@
 # To add a new action simply add a new item in the StandardAction!
 #
 
+__all__ = ["StandardAction", "createAction",
+           "createStandardAction", "getStandardAction",
+           "onRestart", "onFullScreen", "onAssistant", "onAbout"]
+
 import os
 from collections import namedtuple
 
@@ -45,23 +49,74 @@ _KS = Qt.QKeySequence
 class StandardAction(Enum):
     """Enumeration of standard actions"""
 
-    Help = _AI("Help", "&Help", "help-contents", _KS.HelpContents, False, "Help", "Shows {app_name} help")
-    About = _AI("About", "&About", "help-about", "", False, "About...", "Shows {app_name} about information")
-    Quit = _AI("Quit", "&Quit", "application-exit", _KS.Quit, False, "Quit", "Quits {app_name}")
-    FullScreen =_AI("FullScreen", "&Full Screen", ("view-restore", "view-fullscreen"), "F11", True, "Full screen on/off", "Toggles full screen on/off" )
-    Restart = _AI("Restart", "&Restart", "view-refresh", "Ctrl-R", False, "Restart", "Restarts {app_name}")
-    New = _AI("New", "&New", "document-new", _KS.New, False, "New...", "Creates new")
-    Open = _AI("Open", "&Open", "document-open", _KS.Open, False, "Open...", "Opens existing")
-    Close = _AI("Close", "&Close", "document-close", _KS.Close, False, "Close", "Closes")
-    Save = _AI("Save", "&Save", "document-save", _KS.Save, False, "Save", "Saves")
-    SaveAs = _AI("SaveAs", "Save &As", "document-save-as", _KS.SaveAs, False, "Save As...", "Saves as new name")
-    SaveAll = _AI("SaveAll", "Save A&ll", "document-save", "", False, "Save All", "Saves all")
+    #: Show application help (hint use with triggered=onAssistant)
+    Help = _AI("Help", "&Help", "help-contents", _KS.HelpContents, False,
+               "Help", "Shows {app_name} help")
+
+    #: Show application about dialog (hint use with triggered=onAbout)
+    About = _AI("About", "&About", "help-about", "", False, "About...",
+                "Shows {app_name} about information")
+
+    #: Quits (exits) application
+    Quit = _AI("Quit", "&Quit", "application-exit", _KS.Quit, False, "Quit",
+               "Quits {app_name}")
+
+    #: Toggles full screen on/off
+    FullScreen =_AI("FullScreen", "&Full Screen",
+                    ("view-restore", "view-fullscreen"), "", True,
+                    "Full screen on/off", "Toggles full screen on/off" )
+
+    #: Restarts application (hint use with triggered=onAssistant)
+    Restart = _AI("Restart", "&Restart", "view-refresh", "", False,
+                  "Restart", "Restarts {app_name}")
+
+    #: Creates new generic document
+    New = _AI("New", "&New", "document-new", _KS.New, False, "New...",
+              "Creates new")
+
+    #: Opens new generic document
+    Open = _AI("Open", "&Open", "document-open", _KS.Open, False, "Open...",
+               "Opens existing")
+
+    #: Closes generic document
+    Close = _AI("Close", "&Close", "document-close", _KS.Close, False, "Close",
+                "Closes")
+
+    #: Saves generic document
+    Save = _AI("Save", "&Save", "document-save", _KS.Save, False, "Save",
+               "Saves")
+
+    #: Saves generic document with new name
+    SaveAs = _AI("SaveAs", "Save &As", "document-save-as", _KS.SaveAs, False,
+                 "Save As...", "Saves as new name")
+
+    #: Saves all documents
+    SaveAll = _AI("SaveAll", "Save A&ll", "document-save", "", False,
+                  "Save All", "Saves all")
+
+    #: Cuts data
     Cut = _AI("Cut", "Cu&t", "edit-cut", _KS.Cut, False, "Cut", "Cuts")
+
+    #: Copies data
     Copy = _AI("Copy", "&Copy", "edit-copy", _KS.Copy, False, "Copy", "Copies")
-    Paste = _AI("Paste", "&Paste", "edit-paste", _KS.Paste, False, "Paste", "Pastes")
-    Delete = _AI("Delete", "&Delete", "edit-delete", _KS.Delete, False, "Delete", "Deletes")
+
+    #: Pastes content
+    Paste = _AI("Paste", "&Paste", "edit-paste", _KS.Paste, False, "Paste",
+                "Pastes")
+
+    #: Generic delete
+    Delete = _AI("Delete", "&Delete", "edit-delete", _KS.Delete, False,
+                 "Delete", "Deletes")
+
+    #: Undoes action
     Undo = _AI("Undo", "Undo", "edit-undo", _KS.Undo, False, "Undo", "Undoes")
+
+    #: Redoes action
     Redo = _AI("Redo", "Redo", "edit-redo", _KS.Redo, False, "Redo", "Redoes")
+
+    #: Print action
+    Print = _AI("Print", "Print", "document-print", _KS.Print, False,
+                "Print...", "Prints document")
 
 
 __standardActions = {}
@@ -83,7 +138,7 @@ def __createToggleIcon(off_icon, on_icon=None, size=64):
 
 def createAction(text, parent=None, icon=None, iconText=None,
                  toolTip=None, statusTip=None, triggered=None,
-                 toggled=None, data=None, menuRole=None,
+                 checkable=None, checked=None, data=None, menuRole=None,
                  shortcut=None, shortcutContext=Qt.Qt.WindowShortcut):
     """
     Create a QAction.
@@ -103,11 +158,11 @@ def createAction(text, parent=None, icon=None, iconText=None,
     :param triggered: register the given callable to the action's
                       triggered signal
     :type triggered: callable
-    :param toggled: tell if action is toggled. Can be bool or callable.
+    :param checkable: tell if action is checkable. Can be bool or callable.
                     If True or callable is given, the action becomes
                     checkable. If callable is given, the callable is
                     connect to the action's toggled signal.
-    :type toggled: bool or callable
+    :type checkable: bool or callable
     :param data: action additional data
     :type data: object
     :param menuRole: action menu role (for Mac only)
@@ -123,11 +178,13 @@ def createAction(text, parent=None, icon=None, iconText=None,
     if triggered is not None:
         if callable(triggered):
             action.triggered.connect(triggered)
-    if toggled is not None:
-        if callable(toggled):
-            action.toggled.connect(toggled)
-        if toggled:
+    if checkable is not None:
+        if checkable:
             action.setCheckable(True)
+            if checked:
+                action.setChecked(True)
+        if callable(checkable):
+            action.checkable.connect(checkable)
     if icon is not None:
         if not isinstance(icon, Qt.QIcon):
             icon = getIcon(icon)
@@ -158,7 +215,7 @@ def __toActionInfo(action_id):
     return action_info
 
 
-def createStandardAction(action_id):
+def createStandardAction(action_id, triggered=None, checkable=None):
     """
     Creates a standard action.
 
@@ -166,6 +223,13 @@ def createStandardAction(action_id):
         action identifier. Can be a string or a member of
         :class:`StandardAction`.
     :type action_id: str or :class:`StandardAction`
+    :param triggered: register the given callable to the action's
+                      triggered signal
+    :type triggered: callable
+    :param checkable: register the given callable to the action's
+                    toggled signal if the action is checkable. Otherwise has
+                    no effect.
+    :type checkable: callable
     :return: a standard QAction
     :rtype: Qt.QAction
     """
@@ -178,15 +242,17 @@ def createStandardAction(action_id):
     app_name = app.applicationName()
     toolTip = action_info.toolTip.format(app_name=app_name)
     statusTip = action_info.statusTip.format(app_name=app_name)
+    if checkable is None:
+        checkable = action_info.checkable
     return createAction(action_info.text, parent=app,
                         icon=icon, iconText=action_info.name,
                         toolTip=toolTip, statusTip=statusTip,
-                        toggled=action_info.checkable,
+                        triggered=triggered, checkable=checkable,
                         shortcut=action_info.shortcut,
                         shortcutContext=Qt.Qt.ApplicationShortcut)
 
 
-def getStandardAction(action_id, triggered=None, toggled=None):
+def getStandardAction(action_id, triggered=None, checkable=None):
     """
     Returns the standard action given by the action_id.
     Subsequence calls with the same action_id will return the same
@@ -199,9 +265,9 @@ def getStandardAction(action_id, triggered=None, toggled=None):
     :param triggered: register the given callable to the action's
                       triggered signal
     :type triggered: callable
-    :param toggled: register the given callable to the action's
-                    toggled signal
-    :type triggered: callable
+    :param checkable: register the given callable to the action's
+                      toggled signal
+    :type checkable: callable
     :return: a standard QAction
     :rtype: Qt.QAction
     """
@@ -213,8 +279,8 @@ def getStandardAction(action_id, triggered=None, toggled=None):
         __standardActions[action_info] = action
     if triggered:
         action.triggered.connect(triggered)
-    if toggled:
-        action.toggled.connect(toggled)
+    if checkable:
+        action.toggled.connect(checkable)
     return action
 
 
@@ -273,7 +339,7 @@ def onFullScreen(window, checked):
         viewMenu = menuBar.addMenu("&View")
 
         fsAction = getStandardAction(StandardAction.FullScreen,
-                                     toggled=partial(onFullScreen, w))
+                                     checkable=partial(onFullScreen, w))
 
         toolBar.addAction(fsAction)
         viewMenu.addAction(fsAction)
