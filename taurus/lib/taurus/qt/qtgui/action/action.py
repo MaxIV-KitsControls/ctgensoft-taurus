@@ -138,7 +138,7 @@ def __createToggleIcon(off_icon, on_icon=None, size=64):
 
 def createAction(text, parent=None, icon=None, iconText=None,
                  toolTip=None, statusTip=None, triggered=None,
-                 checkable=None, checked=None, data=None, menuRole=None,
+                 toggled=None, checked=None, data=None, menuRole=None,
                  shortcut=None, shortcutContext=Qt.Qt.WindowShortcut):
     """
     Create a QAction.
@@ -158,11 +158,11 @@ def createAction(text, parent=None, icon=None, iconText=None,
     :param triggered: register the given callable to the action's
                       triggered signal
     :type triggered: callable
-    :param checkable: tell if action is checkable. Can be bool or callable.
+    :param toggled: tell if action is checkable. Can be bool or callable.
                     If True or callable is given, the action becomes
                     checkable. If callable is given, the callable is
                     connect to the action's toggled signal.
-    :type checkable: bool or callable
+    :type toggled: bool or callable
     :param data: action additional data
     :type data: object
     :param menuRole: action menu role (for Mac only)
@@ -178,13 +178,13 @@ def createAction(text, parent=None, icon=None, iconText=None,
     if triggered is not None:
         if callable(triggered):
             action.triggered.connect(triggered)
-    if checkable is not None:
-        if checkable:
+    if toggled is not None:
+        if toggled:
             action.setCheckable(True)
             if checked:
                 action.setChecked(True)
-        if callable(checkable):
-            action.toggled.connect(checkable)
+        if callable(toggled):
+            action.toggled.connect(toggled)
     if icon is not None:
         if not isinstance(icon, Qt.QIcon):
             icon = getIcon(icon)
@@ -215,7 +215,7 @@ def __toActionInfo(action_id):
     return action_info
 
 
-def createStandardAction(action_id, triggered=None, checkable=None):
+def createStandardAction(action_id, triggered=None, toggled=None):
     """
     Creates a standard action.
 
@@ -226,10 +226,10 @@ def createStandardAction(action_id, triggered=None, checkable=None):
     :param triggered: register the given callable to the action's
                       triggered signal
     :type triggered: callable
-    :param checkable: register the given callable to the action's
+    :param toggled: register the given callable to the action's
                     toggled signal if the action is checkable. Otherwise has
                     no effect.
-    :type checkable: callable
+    :type toggled: callable
     :return: a standard QAction
     :rtype: Qt.QAction
     """
@@ -242,17 +242,17 @@ def createStandardAction(action_id, triggered=None, checkable=None):
     app_name = app.applicationName()
     toolTip = action_info.toolTip.format(app_name=app_name)
     statusTip = action_info.statusTip.format(app_name=app_name)
-    if checkable is None:
-        checkable = action_info.checkable
+    if toggled is None:
+        toggled = action_info.checkable
     return createAction(action_info.text, parent=app,
                         icon=icon, iconText=action_info.name,
                         toolTip=toolTip, statusTip=statusTip,
-                        triggered=triggered, checkable=checkable,
+                        triggered=triggered, toggled=toggled,
                         shortcut=action_info.shortcut,
                         shortcutContext=Qt.Qt.ApplicationShortcut)
 
 
-def getStandardAction(action_id, triggered=None, checkable=None):
+def getStandardAction(action_id, triggered=None, toggled=None):
     """
     Returns the standard action given by the action_id.
     Subsequence calls with the same action_id will return the same
@@ -265,9 +265,9 @@ def getStandardAction(action_id, triggered=None, checkable=None):
     :param triggered: register the given callable to the action's
                       triggered signal
     :type triggered: callable
-    :param checkable: register the given callable to the action's
+    :param toggled: register the given callable to the action's
                       toggled signal
-    :type checkable: callable
+    :type toggled: callable
     :return: a standard QAction
     :rtype: Qt.QAction
     """
@@ -279,8 +279,8 @@ def getStandardAction(action_id, triggered=None, checkable=None):
         __standardActions[action_info] = action
     if triggered:
         action.triggered.connect(triggered)
-    if checkable:
-        action.toggled.connect(checkable)
+    if toggled:
+        action.toggled.connect(toggled)
     return action
 
 
@@ -339,7 +339,7 @@ def onFullScreen(window, checked):
         viewMenu = menuBar.addMenu("&View")
 
         fsAction = getStandardAction(StandardAction.FullScreen,
-                                     checkable=partial(onFullScreen, w))
+                                     toggled=partial(onFullScreen, w))
 
         toolBar.addAction(fsAction)
         viewMenu.addAction(fsAction)
