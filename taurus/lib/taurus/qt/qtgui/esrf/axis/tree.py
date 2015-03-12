@@ -23,7 +23,8 @@ from taurus.qt.qtgui.resource import getIcon
 from taurus.qt.qtgui.esrf.axis import AxisWidget
 from taurus.qt.qtgui.util.qtdesigner import QtDesignable
 from taurus.qt.qtgui.util.ui import UILoadable
-from taurus.qt.qtgui.action import createStandardAction, StandardAction
+from taurus.qt.qtgui.action import createStandardAction, StandardAction, \
+    createAction
 
 
 class ExpansionBar(_ExpansionBar):
@@ -113,9 +114,12 @@ class AxesTree(Qt.QMainWindow):
         ui.save_action.setStatusTip("Saves axes positions to a file")
         ui.main_toolbar.addAction(ui.save_action)
 
-        ui.copy_clipboard_action = createStandardAction(StandardAction.Copy)
-        ui.copy_clipboard_action.setToolTip("Copy axes positions to clipboard")
-        ui.copy_clipboard_action.setStatusTip("Copies axes positions to clipboard")
+        # don't use the standard action since there is none for
+        # "copy to cliboard"
+        ui.copy_clipboard_action = createAction("Copy to clipboard",
+                                                icon="edit-paste",
+                                                statusTip="Copies axes positions to clipboard",
+                                                toolTip="Copy axes positions to clipboard")
         ui.main_toolbar.addAction(ui.copy_clipboard_action)
 
         expansion_bar = ExpansionBar(view=self.ui.tree)
