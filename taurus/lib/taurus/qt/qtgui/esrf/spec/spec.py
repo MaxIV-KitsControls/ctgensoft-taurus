@@ -15,7 +15,7 @@ This package contains a collection of Qt based widgets designed to execute
 Spec macros.
 """
 
-__all__ = ["SpecAScanWidget", "SpecANScanWidget", "SpecMacroForm",
+__all__ = ["SpecAScanWidget", "SpecScanWidget", "SpecMacroForm",
            "SpecCounterMonitorWidget", "SpecOutputWidget", "SpecXTermWidget",
            "SpecXTermWindow"]
 
@@ -33,10 +33,14 @@ from taurus.qt.qtgui.dialog import TaurusMessageBox
 from taurus.qt.qtgui.util import UILoadable, QtDesignable
 
 from taurus.qt.qtgui.esrf.macro import MacroForm
-from taurus.qt.qtgui.esrf.macro import AScanWidget, ANScanWidget
+from taurus.qt.qtgui.esrf.macro import AScanWidget, ScanWidget
 
 TWENTY_DAYS = 60*60*24*20
 
+
+SpecQtDesignable = functools.partial(QtDesignable,
+                                     module="taurus.qt.qtgui.esrf.spec",
+                                     group="ESRF Spec Widgets")
 
 def Specable(klass=None):
     if klass is None:
@@ -195,6 +199,7 @@ def Specable(klass=None):
 
 
 @Specable
+@SpecQtDesignable(label="Spec AScan Widget", icon=":designer/macroserver.png")
 class SpecAScanWidget(AScanWidget, TaurusBaseWidget):
 
     commandFinished = Qt.Signal(object, bool)
@@ -235,26 +240,20 @@ class SpecAScanWidget(AScanWidget, TaurusBaseWidget):
         if current_motor:
             axisComboBox.setCurrentIndex(axisComboBox.findText(current_motor))
 
-    @classmethod
-    def getQtDesignerPluginInfo(cls):
-        return dict(label="Spec Ascan Widget",
-                    module="taurus.qt.qtgui.esrf.spec",
-                    icon=":designer/macroserver.png",
-                    group="ESRF Spec Widgets")
-
     model = Qt.Property(str, TaurusBaseWidget.getModel,
                         TaurusBaseWidget.setModel, TaurusBaseWidget.resetModel)
 
 
 @Specable
-class SpecANScanWidget(ANScanWidget, TaurusBaseWidget):
+@SpecQtDesignable(label="Spec Scan Widget", icon=":designer/macroserver.png")
+class SpecScanWidget(ScanWidget, TaurusBaseWidget):
 
     commandFinished = Qt.Signal(object, bool)
     motorListChanged = Qt.Signal(object)
 
     def __init__(self, parent=None, designMode=False):
         name = self.__class__.__name__
-        ANScanWidget.__init__(self, parent=parent, designMode=designMode)
+        ScanWidget.__init__(self, parent=parent, designMode=designMode)
         TaurusBaseWidget.__init__(self, name, designMode=designMode)
         self.motorListChanged.connect(self.__onMotorListChanged)
         self.dimensionsChanged.connect(self.__onDimensionsChanged)
@@ -303,18 +302,13 @@ class SpecANScanWidget(ANScanWidget, TaurusBaseWidget):
             if current_motor:
                 axisComboBox.setCurrentIndex(axisComboBox.findText(current_motor))
 
-    @classmethod
-    def getQtDesignerPluginInfo(cls):
-        return dict(label="Spec ANscan Widget",
-                    module="taurus.qt.qtgui.esrf.spec",
-                    icon=":designer/macroserver.png",
-                    group="ESRF Spec Widgets")
-
     model = Qt.Property(str, TaurusBaseWidget.getModel,
                         TaurusBaseWidget.setModel, TaurusBaseWidget.resetModel)
 
 
 @Specable
+@SpecQtDesignable(label="Spec Macro Form", icon=":designer/macroserver.png",
+                  task_menu="taurus.qt.qtgui.esrf.macro.designer.MacroTaskMenu")
 class SpecMacroForm(MacroForm, TaurusBaseWidget):
 
     commandFinished = Qt.Signal(object, bool)
@@ -347,16 +341,8 @@ class SpecMacroForm(MacroForm, TaurusBaseWidget):
             motors = [value.split() for value in evt_value.value]
             self.__fillMotorArgumentWidgets(motors)
 
-    @classmethod
-    def getQtDesignerPluginInfo(cls):
-        d = MacroForm.getQtDesignerPluginInfo()
-        d.update(label="Spec Macro Form",
-                 module="taurus.qt.qtgui.esrf.spec",
-                 icon=":designer/macroserver.png",
-                 group="ESRF Spec Widgets")
-        return d
 
-
+@SpecQtDesignable(label="Spec Counter Monitor", icon="utilities-system-monitor")
 class SpecCounterMonitorWidget(Qt.QWidget, TaurusBaseWidget):
 
     def __init__(self, parent=None, designMode=False):
@@ -384,13 +370,6 @@ class SpecCounterMonitorWidget(Qt.QWidget, TaurusBaseWidget):
         # around a tango < 9 bug that prevents subscribing to an event inside
         # an event handler
         Qt.QTimer.singleShot(10, self.__update)
-
-    @classmethod
-    def getQtDesignerPluginInfo(cls):
-        return dict(label="Spec Counter Monitor",
-                    module="taurus.qt.qtgui.esrf.spec",
-                    icon=":designer/macroserver.png",
-                    group="ESRF Spec Widgets")
 
 
 class SpecUIMixin(TaurusBaseWidget):
@@ -423,6 +402,7 @@ class SpecBasePanel(Qt.QWidget, SpecUIMixin):
                         SpecUIMixin.setModel, SpecUIMixin.resetModel)
 
 
+@SpecQtDesignable(label="Spec Output", icon="utilities-terminal")
 class SpecOutputWidget(Qt.QPlainTextEdit, TaurusBaseWidget):
 
     def __init__(self, parent=None, designMode=False):
@@ -481,18 +461,12 @@ class SpecOutputWidget(Qt.QPlainTextEdit, TaurusBaseWidget):
     model = Qt.Property(str, TaurusBaseWidget.getModel,
                         TaurusBaseWidget.setModel, TaurusBaseWidget.resetModel)
 
-    @classmethod
-    def getQtDesignerPluginInfo(cls):
-        return dict(label="Spec Output",
-                    module="taurus.qt.qtgui.esrf.spec",
-                    icon=":designer/macroserver.png",
-                    group="ESRF Spec Widgets")
-
 
 from taurus.qt.qtgui.x11 import XTermWidget, XTermWindow
 from taurus.external.enum import Enum
 
 
+@SpecQtDesignable(label="Spec XTerm Widget", icon=":/designer/xterm.png")
 class SpecXTermWidget(XTermWidget):
     """
     Spec xterm widget.
@@ -705,13 +679,6 @@ class SpecXTermWidget(XTermWidget):
         """
         self.setSpecSessionType(self.DefaultSpecSessionType)
 
-    @classmethod
-    def getQtDesignerPluginInfo(cls):
-        return dict(label="Spec XTerm Widget",
-                    module="taurus.qt.qtgui.esrf.spec",
-                    icon=":/designer/xterm.png",
-                    group="ESRF Spec Widgets")
-
     #:
     #: Specifies the command to run on the xterm. Use empty string (default for
     #: no command (ex: python)
@@ -748,6 +715,7 @@ class SpecXTermWidget(XTermWidget):
                                   setSpecSessionType, resetSpecSessionType,
                                   doc="spec execution mode mode")
 
+@SpecQtDesignable(label="Spec XTerm Window", icon=":/designer/xterm.png")
 class SpecXTermWindow(XTermWindow):
 
     Widget = SpecXTermWidget
@@ -791,13 +759,6 @@ class SpecXTermWindow(XTermWindow):
 
     def resetSpecSessionType(self):
         self.XWidget().resetSpecSessionType()
-
-    @classmethod
-    def getQtDesignerPluginInfo(cls):
-        return dict(label="Spec XTerm Window",
-                    module="taurus.qt.qtgui.esrf.spec",
-                    icon=":/designer/xterm.png",
-                    group="ESRF Spec Widgets")
 
     #:
     #: Specifies the command to run on the xterm. Use empty string (default for
@@ -923,7 +884,7 @@ def main():
     panel5.setTitle("a3scan")
     layout = panel5.content().layout()
     layout.setMargin(3)
-    w5 = SpecANScanWidget()
+    w5 = SpecScanWidget()
     w5.setDimensions(3)
     w5.setModel(spec)
     layout.addWidget(w5)

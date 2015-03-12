@@ -16,12 +16,15 @@ procedures. They can be used to execute macros from SPEC, macros from the
 sardana macro executor, simple python functions, etc.
 """
 
+__all__ = ["AScanWidget", "ScanWidget", "Argument", "MacroForm"]
+
 __docformat__ = 'restructuredtext'
 
 import json
 
 from taurus.external.qt import Qt
 from taurus.qt.qtgui.resource import getIcon, getThemeIcon
+from taurus.qt.qtgui.util.qtdesigner import QtDesignable
 
 
 class _UI(object):
@@ -36,7 +39,8 @@ ascan - one-motor scan
      time is given by time, which if positive, specifies seconds and if negative, specifies monitor counts.
 """
 
-
+@QtDesignable(label="AScan Widget", module="taurus.qt.qtgui.esrf.macro",
+              icon=":designer/macroserver.png", group="ESRF Macro Widgets")
 class AScanWidget(Qt.QWidget):
     """Single axis, absolute scan widget"""
 
@@ -163,27 +167,25 @@ class AScanWidget(Qt.QWidget):
     def getCommandLine(self):
         return " ".join(map(str, self.getCommandLineList()))
 
-    @classmethod
-    def getQtDesignerPluginInfo(cls):
-        return dict(label="AScan Widget",
-                    module="taurus.qt.qtgui.esrf.macro",
-                    icon=":designer/macroserver.png",
-                    group="ESRF Macro Widgets")
 
-
-class ANScanWidget(Qt.QWidget):
-    """Multiple axis, absolute scan widget"""
+@QtDesignable(label="Scan Widget", module="taurus.qt.qtgui.esrf.macro",
+              icon=":designer/macroserver.png", group="ESRF Macro Widgets")
+class ScanWidget(Qt.QWidget):
+    """Multiple axis, absolute/relative scan widget"""
 
     runClicked = Qt.Signal(bool)
     stopClicked = Qt.Signal(bool)
     dimensionsChanged = Qt.Signal(int)
+    scanTypeChanged = Qt.Signal(str)
 
     _DefaultDimensions = 1
+    _DefaultScanType = 'absolute'
 
     def __init__(self, parent=None, designMode=False):
         Qt.QWidget.__init__(self, parent)
         self.__old_dimensions = 0
         self.__dimensions = 0
+        self.__scan_type = None
         self.ui = _UI()
         layout = Qt.QGridLayout(self)
         self.ui.intervalsSpinBox = Qt.QSpinBox(self)
@@ -199,14 +201,14 @@ class ANScanWidget(Qt.QWidget):
         icon = getThemeIcon("media-playback-start")
         self.ui.runButton = Qt.QToolButton()
         self.ui.runButton.setIcon(icon)
-        self.ui.runButton.setToolTip("Start aNscan")
-        self.ui.runButton.setStatusTip("Press to start aNscan macro")
+        self.ui.runButton.setToolTip("Start scan")
+        self.ui.runButton.setStatusTip("Press to start scan macro")
         self.ui.runButton.clicked.connect(self.runClicked)
         icon = getThemeIcon("media-playback-stop")
         self.ui.stopButton = Qt.QToolButton()
         self.ui.stopButton.setIcon(icon)
-        self.ui.stopButton.setToolTip("Stop current aNscan")
-        self.ui.stopButton.setStatusTip("Press to stop running aNscan")
+        self.ui.stopButton.setToolTip("Stop current scan")
+        self.ui.stopButton.setStatusTip("Press to stop running scan")
         self.ui.stopButton.clicked.connect(self.stopClicked)
 
         layout.setMargin(0)
@@ -217,6 +219,7 @@ class ANScanWidget(Qt.QWidget):
 
         self.dimensionsChanged.connect(self.__onDimensionsChanged)
         self.setDimensions(self._DefaultDimensions)
+        self.setScanType(self._DefaultScanType)
 
     def __onDimensionsChanged(self, n):
         old_n = self.__old_dimensions
@@ -243,10 +246,14 @@ class ANScanWidget(Qt.QWidget):
             layout.addWidget(startSpinBox, old_n, 1)
             layout.addWidget(stopSpinBox, old_n, 2)
             old_n += 1
-        if n > 1:
-            self.macroName = "a{0}scan".format(n)
-        else:
-            self.macroName = "ascan"
+
+    def getMacroName(self):
+        t, d = "a", ""
+        if self.__scan_type.lower() == 'relative':
+            t = "d"
+        if self.__dimensions > 1:
+            d = self.__dimensions
+        return "{0}{1}scan".format(t, d)
 
     def getMotorWidget(self, dim):
         return self.layout().itemAtPosition(dim, 0).widget()
@@ -271,17 +278,10 @@ class ANScanWidget(Qt.QWidget):
         return [_getWidgetValue(w) for w in self.getWidgets()]
 
     def getCommandLineList(self):
-        return [self.macroName] + self.getArgumentValueList()
+        return [self.getMacroName()] + self.getArgumentValueList()
 
     def getCommandLine(self):
         return " ".join(map(str, self.getCommandLineList()))
-
-    @classmethod
-    def getQtDesignerPluginInfo(cls):
-        return dict(label="ANScan Widget",
-                    module="taurus.qt.qtgui.esrf.macro",
-                    icon=":designer/macroserver.png",
-                    group="ESRF Macro Widgets")
 
     def __onAxisChanged(self, index):
         enabled = index != -1
@@ -306,6 +306,21 @@ class ANScanWidget(Qt.QWidget):
 
     dimensions = Qt.Property(int, getDimensions, setDimensions,
                              resetDimensions)
+
+    def getScanType(self):
+        return self.__scan_type
+
+    @Qt.Slot(str)
+    def setScanType(self, scan_type):
+        if scan_type == self.__scan_type:
+            return
+        self.__scan_type = scan_type
+        self.scanTypeChanged.emit(scan_type)
+
+    def resetScanType(self):
+        self.setScanType(self._DefaultScanType)
+
+    scanType = Qt.Property(str, getScanType, setScanType, resetScanType)
 
     def getRunButtonVisible(self):
         return self.ui.runButton.isVisible()
@@ -522,7 +537,9 @@ Examples:
   3. {"unit": "KeV", "name": "energy_start", "dtype": "float", "min_value": 0.0, "tooltip": "starting energy", "label": "Energy start"}
 """
 
-
+@QtDesignable(label="Macro Form", module="taurus.qt.qtgui.esrf.macro",
+              icon=":designer/macroserver.png", group="ESRF Macro Widgets",
+              task_menu="taurus.qt.qtgui.esrf.macro.designer.MacroTaskMenu")
 class MacroForm(Qt.QWidget):
     """
     A form widget designed to execute a macro/function with a specified set of
@@ -719,14 +736,6 @@ class MacroForm(Qt.QWidget):
     def getCommandLine(self):
         return " ".join(map(str, self.getCommandLineList()))
 
-    @classmethod
-    def getQtDesignerPluginInfo(cls):
-        return dict(label="Macro Form",
-                    module="taurus.qt.qtgui.esrf.macro",
-                    icon=":designer/macroserver.png",
-                    group="ESRF Macro Widgets",
-                    task_menu="taurus.qt.qtgui.esrf.macro.designer.MacroTaskMenu")
-
 
 def main():
     import taurus
@@ -754,18 +763,23 @@ def main():
     panel2.setTitleIcon(getThemeIcon("applications-system"))
     layout = panel2.content().layout()
     layout.setMargin(3)
-    w2 = ANScanWidget()
+    w2 = ScanWidget()
     layout.addWidget(w2)
     windowLayout.addWidget(panel2)
 
+    def updateTitle(n):
+        panel2.setTitle(w2.getMacroName())
     nspin = Qt.QSpinBox()
+    tcombo = Qt.QComboBox()
+    tcombo.addItems(["absolute", "relative"])
     nspin.valueChanged[int].connect(w2.setDimensions)
-    def setTitle(n):
-        panel2.setTitle("a{0}scan".format(n))
-    nspin.valueChanged[int].connect(setTitle)
+    nspin.valueChanged[int].connect(updateTitle)
+    tcombo.activated[str].connect(w2.setScanType)
+    tcombo.activated[str].connect(updateTitle)
     nspin.setValue(1)
     nspin.setMinimum(1)
     layout.addWidget(nspin)
+    layout.addWidget(tcombo)
     layout.addWidget(w2)
 
     panel3 = QGroupWidget()

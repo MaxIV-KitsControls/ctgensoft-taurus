@@ -28,5 +28,4 @@ for the ESRF"""
 
 __docformat__ = 'restructuredtext'
 
-from .macro import Argument
-from .macro import MacroForm, AScanWidget, ANScanWidget
+from .macro import *
