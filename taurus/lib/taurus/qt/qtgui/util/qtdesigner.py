@@ -116,6 +116,10 @@ def QtDesignable(klass=None, **kwargs):
         kw["icon"] = kw.get("icon", ":/designer/taurus.png")
         kw["group"] = kw.get("group", "Taurus [Unclassified]")
         kw["container"] = kw.get("container", False)
+        if "label" in kw:
+            kw["label"] = kw["label"]
+        if "task_menu" in kw:
+            kw["task_menu"] = kw["task_menu"]
         return kw
 
     klass.getQtDesignerPluginInfo = classmethod(getQtDesignerPluginInfo)
