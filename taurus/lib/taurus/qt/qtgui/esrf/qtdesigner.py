@@ -12,12 +12,12 @@
 
 import os
 
-def start_qtdesigner(app_package_name):
-    from taurus.external.qt import Qt
-    from taurus.qt.qtdesigner.taurusdesigner import (qtdesigner_start,
-                                                     qtdesigner_prepare_taurus,
-                                                     append_or_create_env)
+from taurus.external.qt import Qt
+from taurus.qt.qtdesigner.taurusdesigner import (qtdesigner_start,
+                                                 qtdesigner_prepare_taurus,
+                                                 append_or_create_env)
 
+def start_qtdesigner(app_package_name):
     package = __import__(app_package_name)
     package_dir = os.path.dirname(os.path.realpath(package.__file__))
     gui_dir = os.path.realpath(os.path.join(package_dir, os.path.pardir))
@@ -31,4 +31,5 @@ def start_qtdesigner(app_package_name):
     env = Qt.QProcess.systemEnvironment()
     qtdesigner_prepare_taurus(env, taurus_extra_package=app_package_name)
     append_or_create_env(env, "PYTHONPATH", gui_dir)
-    return qtdesigner_start(ui_files, env=env, wait_for_finished=False)
+    qtdesigner = qtdesigner_start(ui_files, env=env, wait_for_finished=False)
+    return qtdesigner
