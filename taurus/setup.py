@@ -153,6 +153,12 @@ packages = [
     'taurus.qt.qtgui.util.test',
     'taurus.qt.qtgui.util.test.test_ui',
     'taurus.qt.uic',
+
+    'taurus.qt.qtgui.esrf',
+    'taurus.qt.qtgui.esrf.axis',
+    'taurus.qt.qtgui.esrf.macro',
+    'taurus.qt.qtgui.esrf.spec',
+    'taurus.qt.qtgui.esrf.visual',
 ]
 
 
