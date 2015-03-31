@@ -61,7 +61,7 @@ class TaurusDevice(TaurusModel):
             storeCallback(self)
 
     def cleanUp(self):
-        self.trace("[TaurusDevice] cleanUp")
+        self.debug("[TaurusDevice] cleanUp")
         self._deviceObj = None
         self._descr = None
         #self._deviceSwObj

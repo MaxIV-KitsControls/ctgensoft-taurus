@@ -100,7 +100,7 @@ class TaurusConfiguration(TaurusModel):
         pass
     
     def cleanUp(self):
-        self.trace("[TaurusConfiguration] cleanUp")
+        self.debug("[TaurusConfiguration] cleanUp")
         self._unsubscribeEvents()
         self._attr_info = None
         self._dev_hw_obj = None
@@ -153,11 +153,11 @@ class TaurusConfiguration(TaurusModel):
     def _getDev(self):
         dev = None
         attrObj = self.getParentObj()
-        if attrObj is None or attrObj.getParent() is None:
+        if attrObj is None or attrObj.getTaurusLogger().getParent() is None:
             devname = self._getDevName()
             dev = self.factory().getDevice(devname)
         else:
-            dev = attrObj.getParent()
+            dev = attrObj.getTaurusLogger().getParent()
         return dev
     
     def _getAttr(self, createAttr=False):

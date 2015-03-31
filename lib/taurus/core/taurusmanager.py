@@ -78,7 +78,7 @@ class TaurusManager(Singleton, Logger):
         if self._state == ManagerState.INITED:
             return
         
-        self.trace("reInit()")
+        self.debug("reInit()")
         this_path = os.path.abspath(__file__)
         self._this_path = os.path.dirname(this_path)
         self._operation_mode = OperationMode.ONLINE
@@ -100,11 +100,11 @@ class TaurusManager(Singleton, Logger):
         """Cleanup"""
         if self._state == ManagerState.CLEANED:
             return
-        self.trace("cleanUp()")
+        self.debug("cleanUp()")
         
         if self._plugins is None:
             return
-        self.trace("[TaurusManager] cleanUp")
+        self.debug("[TaurusManager] cleanUp")
         for f_scheme, f in self._plugins.items():
             f().cleanUp()
         self._plugins = None

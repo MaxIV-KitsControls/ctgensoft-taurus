@@ -29,7 +29,7 @@ emitter.py: This module provides a task scheduler used by TaurusGrid and TaurusD
 from functools import partial
 import taurus
 from taurus.external.qt import Qt
-from taurus.core.util.log import Logger
+from taurus.core.util.log import Logger, _LoggerHelper
 from taurus.core.util.singleton import Singleton
 import Queue,traceback
 
@@ -140,7 +140,7 @@ class TaurusEmitterThread(Qt.QThread):
         Qt.QThread.__init__(self, parent)
         self.name = name
         self.log = Logger('TaurusEmitterThread(%s)'%self.name)
-        self.log.setLogLevel(self.log.Info)
+        self.log.getTaurusLogger().setLogLevel(self.log.getTaurusLogger().Info)
         self.queue = queue or Queue.Queue()
         self.todo = Queue.Queue()
         self.method = method
@@ -263,10 +263,10 @@ class SingletonWorker():#Qt.QObject):
     """
     _thread = None
         
-    def __init__(self,parent=None,name='',queue=None,method=None,cursor=None,sleep=5000,log=Logger.Warning,start=True):
+    def __init__(self,parent=None,name='',queue=None,method=None,cursor=None,sleep=5000,log=taurus.Warning,start=True):
         self.name = name
         self.log = Logger('SingletonWorker(%s)'%self.name)
-        self.log.setLogLevel(log)
+        self.log.getTaurusLogger().setLogLevel(log)
         self.log.info('At SingletonWorker.__init__(%s)'%self.name)
         self.parent = parent
         self.method = method

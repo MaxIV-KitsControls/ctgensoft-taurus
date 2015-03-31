@@ -40,7 +40,7 @@ import threading
 
 from taurus.external.qt import Qt
 
-from taurus.core.util.log import LogExceptHook, Logger
+from taurus.core.util.log import LogExceptHook, Logger, _LoggerHelper
 import taurus.core.util.argparse
 
 
@@ -64,7 +64,7 @@ class STD(Logger):
         """
         Logger.__init__(self, name=name, parent=parent, format=format)
         self.buffer = ''
-        self.log_obj.propagate = False
+        self.getTaurusLogger().getLogObj().propagate = False
         self.std = std
 
     def addLogHandler(self, handler):
@@ -73,8 +73,8 @@ class STD(Logger):
         by itself)
 
         :param handler: new handler"""
-        Logger.addLogHandler(self, handler)
-        self.log_obj.propagate = not len(self.log_handlers)
+        _LoggerHelper.addLogHandler(self, handler)
+        self.getTaurusLogger().getLogObj().propagate = not len(self.getTaurusLogger().log_handlers)
 
     def write(self, msg):
         try:
@@ -104,8 +104,8 @@ class STD(Logger):
             #interpreted as a separate line in the client
             if buff[-1] == '\n':
                 buff = buff[:-1]
-            if self.log_handlers:
-                self.log(Logger.Console, '\n' + buff)
+            if self.getTaurusLogger().log_handlers:
+                self.log(_LoggerHelper.Console, '\n' + buff)
             self.buffer = ""
         finally:
             if self.std is not None:
@@ -195,11 +195,15 @@ class TaurusApplication(Qt.QApplication, Logger):
             org_domain = kwargs.pop('org_domain')
         if 'cmd_line_parser' in kwargs:
             parser = kwargs.pop('cmd_line_parser')
+        auto_init_log = kwargs.pop('auto_init_log', True)
 
         try:
             Qt.QApplication.__init__(self, *args, **kwargs)
         except TypeError:
             Qt.QApplication.__init__(self, *args)
+
+        if auto_init_log:
+            taurus.initLogger()
 
         Logger.__init__(self)
 
@@ -257,7 +261,7 @@ class TaurusApplication(Qt.QApplication, Logger):
 
     def __redirect_std(self):
         """Internal method to redirect stdout and stderr to log messages"""
-        Logger.addLevelName(Logger.Critical + 10, 'CONSOLE')
+        _LoggerHelper.addLevelName(_LoggerHelper.Critical + 10, 'CONSOLE')
         # only redirect if display hook has not been set (IPython does it)
         if sys.displayhook == sys.__displayhook__:
             self._out = STD(name="OUT", std=sys.stdout)
@@ -328,13 +332,13 @@ class TaurusApplication(Qt.QApplication, Logger):
                 log_file_name = self.__buildLogFileName()
             f_h = logging.handlers.RotatingFileHandler(log_file_name,
                 maxBytes=maxBytes, backupCount=backupCount)
-            Logger.addRootLogHandler(f_h)
+            _LoggerHelper.addRootLogHandler(f_h)
             if self._out is not None:
                 self._out.std = sys.__stdout__
-                self._out.addLogHandler(f_h)
+                self._out.getTaurusLogger().addLogHandler(f_h)
             if self._out is not None:
                 self._err.std = sys.__stderr__
-                self._err.addLogHandler(f_h)
+                self._err.getTaurusLogger().addLogHandler(f_h)
             self.info("Logs will be saved in %s", log_file_name)
         except:
             self.warning("'%s' could not be created. Logs will not be stored",

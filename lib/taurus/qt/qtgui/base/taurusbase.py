@@ -743,7 +743,8 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
                 if not self.modelObj is None:
                     self.modelObj.addListener(self)
                     self._attached = True
-                    self.changeLogName(self.log_name + "." + self.modelName)
+                    new_name = self.getTaurusLogger().getName() + "." + self.modelName
+                    self.getTaurusLogger().changeLogName(new_name)
             except Exception:
                 self.modelObj = None
                 self._attached = False
@@ -762,10 +763,11 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
             if not m is None:
                 m.removeListener(self)
             
-            pos = self.log_name.find('.')
+            pos = self.getTaurusLogger().getName().find('.')
             if pos >= 0:
-                new_log_name = self.log_name[:self.log_name.rfind('.')]
-                self.changeLogName(new_log_name)
+                index = self.getTaurusLogger().getName().rfind('.')
+                new_log_name = self.getTaurusLogger().getName()[:index]
+                self.getTaurusLogger().changeLogName(new_log_name)
             self.modelObj = None
             self._attached = False
             self.fireEvent(m, TaurusEventType.Change, None)

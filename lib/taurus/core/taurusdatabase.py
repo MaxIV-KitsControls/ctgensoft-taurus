@@ -416,7 +416,7 @@ class TaurusDatabase(TaurusModel):
     # TaurusModel implementation
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-    
     def cleanUp(self):
-        self.trace("[TaurusDatabase] cleanUp")
+        self.debug("[TaurusDatabase] cleanUp")
         TaurusModel.cleanUp(self)
 
     @classmethod
