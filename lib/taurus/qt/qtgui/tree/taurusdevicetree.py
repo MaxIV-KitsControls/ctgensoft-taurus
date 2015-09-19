@@ -27,12 +27,19 @@
 taurusdevicetree.py: 
 """
 
+# @todo: This module is not being used anywhere in Taurus and depends on 
+# non-standard and non-provided modules. It is also quite specific and 
+# tango-centric, so it should be removed from Taurus or merged with Taurusdbtree
+
 __all__ = ["TaurusDevTree","TaurusSearchTree","TaurusDevTreeOptions"] #,"SearchEdit"] #"TaurusTreeNode"]
 
-import time,os,re,traceback
+import time,os,traceback
 from functools import partial
 import PyTango # to change!!
 
+# @todo: icons_dev_tree is not an included or standard module. 
+#        Is anybody using it? If not, the following lines should be removed and   
+#        the TaurusDevTree.setStateIcon method should be cleaned
 try:import icons_dev_tree
 except:icons_dev_tree = None
 
@@ -496,7 +503,7 @@ class TaurusDevTree(TaurusTreeNodeContainer,Qt.QTreeWidget, TaurusBaseWidget):
             print 'TaurusDevTree.%s: %s'%(self.getLogLevel(),msg) #@TODO: use the taurus logger instead! ~~cpascual 20121121
         
     def setTangoHost(self,tango_host=None):
-        self.db = taurus.Database(tango_host)
+        self.db = taurus.Authority(tango_host)
         
     #model = Qt.pyqtProperty("QString", TaurusBaseWidget.getModel, 
                                 #TaurusBaseWidget.setModel, 
@@ -506,7 +513,7 @@ class TaurusDevTree(TaurusTreeNodeContainer,Qt.QTreeWidget, TaurusBaseWidget):
         return self._filters    
     
     def getModelClass(self):
-        return list #taurus.core.taurusdatabase.TaurusDatabase
+        return list #taurus.core.taurusauthority.TaurusAuthority
         
     def setModel(self,model):
         TaurusBaseWidget.setModel(self,model)
@@ -1229,7 +1236,7 @@ class TaurusTreeNode(Qt.QTreeWidgetItem, TaurusBaseComponent):
         state2color = lambda state: Qt.QColor(DEVICE_STATE_PALETTE.number(state))
         quality2color = lambda attr: Qt.QColor(ATTRIBUTE_QUALITY_PALETTE.number(attr))
         v = self.getModelValueObj()
-        if isinstance(v,PyTango.DevState):
+        if isinstance(v,PyTango.DevState):  # TODO: maybe change to Taurus.tango.DevState
             node.setBackground(0,Qt.QBrush(state2color(v))) #@TODO: node is undefined. Check code
         if hasattr(v,'quality'):
             self.setForeground(0,Qt.QBrush(quality2color(v.quality)))
@@ -1513,7 +1520,7 @@ def taurusDevTreeMain():
     form = TaurusSearchTree()
     #try:
         #if options.tango_host is None:
-            #options.tango_host = taurus.Database().getNormalName()
+            #options.tango_host = taurus.Authority().getNormalName()
         #form.setTangoHost(options.tango_host)
     #except: pass
     

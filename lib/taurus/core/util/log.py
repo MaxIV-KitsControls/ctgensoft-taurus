@@ -30,7 +30,8 @@ __all__ = ["LogIt", "TraceIt", "DebugIt", "InfoIt", "WarnIt", "ErrorIt",
            "CriticalIt", "MemoryLogHandler", "LogExceptHook", "Logger",
            "LogFilter",
            "_log", "trace", "debug", "info", "warning", "error", "fatal",
-           "critical"]
+           "critical", "deprecated", "deprecation_decorator",
+           "tep14_deprecation"]
 
 __docformat__ = "restructuredtext"
 
@@ -42,11 +43,37 @@ import warnings
 import traceback
 import inspect
 import threading
+import functools
 
 from object import Object
 from wrap import wraps
 from excepthook import BaseExceptHook
 from taurus import tauruscustomsettings
+
+# ------------------------------------------------------------------------------
+# TODO: substitute this ugly hack (below) by a more general mechanism
+from collections import defaultdict
+class _DeprecationCounter(defaultdict):
+    def __init__(self):
+        defaultdict.__init__(self, int)
+
+    def getTotal(self):
+        c = 0
+        for v in self.itervalues():
+            c += v
+        return c
+
+    def pretty(self):
+        from operator import itemgetter
+        sorted_items = sorted(self.iteritems(), key=itemgetter(1), reverse=True)
+        ret = '\n'.join(['\t%d * "%s"' % (v,k) for k,v in sorted_items])
+        return  "< Deprecation Counts (%d):\n%s >" % (self.getTotal(), ret)
+
+_DEPRECATION_COUNT = _DeprecationCounter()
+# ------------------------------------------------------------------------------
+
+TRACE = 5
+logging.addLevelName(TRACE, "TRACE")
 
 #
 # _srcfile is used when walking the stack to check when we've got the first
@@ -262,6 +289,44 @@ class CriticalIt(LogIt):
         LogIt.__init__(self, level=logging.CRITICAL, showargs=showargs, showret=showret)
 
 
+
+class PrintIt(object):
+    '''A decorator similar to TraceIt, DebugIt,... etc but which does not 
+    require the decorated class to inherit from Logger.
+    It just uses print statements instead of logging. It is here just to be
+    used as a replacement of those decorators if you cannot use them on a 
+    non-logger class.
+    ''' 
+    def __init__(self, showargs=False, showret=False):
+        self._showargs = showargs
+        self._showret = showret
+
+    def __call__(self, f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            fname = f.func_name
+            in_msg = "-> %s" % fname
+            if self._showargs:
+                if len(args) > 1: in_msg += str(args[1:])
+                if len(kwargs):   in_msg += str(kwargs)
+            print 
+            print in_msg
+            out_msg = "<-"
+            try:
+                ret = f(*args, **kwargs)
+            except Exception, e:
+                out_msg += " (with %s) %s" % (e.__class__.__name__, fname)
+                print out_msg
+                raise
+            out_msg += " %s" % fname
+            if not ret is None and self._showret:
+                out_msg += " = %s" % str(ret)
+            print out_msg
+            print
+            return ret
+        return wrapper
+    
+
 class MemoryLogHandler(list, logging.handlers.BufferingHandler):
     """An experimental log handler that stores temporary records in memory.
        When flushed it passes the records to another handler"""
@@ -457,7 +522,6 @@ class _LoggerHelper(object):
         h.setFormatter(cls.getLogFormat())
         logging.getLogger().addHandler(h)
 
-
     @classmethod
     def getLogLevel(cls):
         """Retuns the current log level (the root log level)
@@ -479,7 +543,6 @@ class _LoggerHelper(object):
     def resetLogLevel(cls):
         """Resets the log level (the root log level)"""
         cls.setLogLevel(cls.DftLogLevel)
-
 
     @classmethod
     def setLogFormat(cls,format):
@@ -714,6 +777,18 @@ class Logger(Object):
         """
         self._logger.getLogObj().log(level, msg, *args, **kw)
 
+    def stack(self, target=Trace):
+        """Log the usual stack information, followed by a listing of all the
+           local variables in each frame.
+
+           :param target: (int) the log level assigned to the record
+
+           :return: (str) The stack string representation
+        """
+        out = self._logger._format_stack()
+        self._logger.getLogObj()..log(target, out)
+        return out
+
     def debug(self, msg, *args, **kw):
         """Record a debug message in this object's logger. Accepted *args* and
            *kwargs* are the same as :meth:`logging.Logger.debug`.
@@ -744,18 +819,57 @@ class Logger(Object):
         """
         self._logger.getLogObj().warning(msg, *args, **kw)
 
-    def deprecated(self, msg, *args, **kw):
-        """Record a deprecated warning message in this object's logger. Accepted *args* and
-           *kwargs* are the same as :meth:`logging.Logger.warning`.
+    def deprecated(self, msg=None, dep=None, alt=None, rel=None, dbg_msg=None,
+                   _callerinfo=None, **kw):
+        """Record a deprecated warning message in this object's logger. 
+           If message is not passed, a estandard deprecation message is 
+           constructued using dep, alt, rel arguments.
+           Also, an extra debug message can be recorded, followed by traceback
+           info.
 
-           :param msg: (str) the message to be recorded
-           :param args: list of arguments
-           :param kw: list of keyword arguments
+           :param msg: (str) the message to be recorded (if None passed, it will
+                       be constructed using dep (and, optionally, alt and rel)
+           :param dep: (str) name of deprecated feature (in case msg is None)
+           :param alt: (str) name of alternative feature (in case msg is None)
+           :param rel: (str) name of release from which the feature was 
+                       deprecated (in case msg is None)
+           :param dbg_msg: (str) msg for debug (or None to log only the warning)  
+           :param _callerinfo: for internal use only. Do not use this argument.
+           :param kw: any additional keyword arguments, are passed to 
+                     :meth:`logging.Logger.warning`
         """
-        filename, lineno, func = self._logger.getLogObj().findCaller()
-        depr_msg = warnings.formatwarning(msg, DeprecationWarning, filename, lineno)
-        self._logger.getLogObj().warning(depr_msg, *args, **kw)
+        if msg is None:
+            if dep is None:
+                raise TypeError('deprecated takes either msg or dep argument')
+            msg = '%s is deprecated' % dep
+            if rel is not None:
+                msg += ' (from %s)' % rel
+            if alt is not None:
+                msg += '. Use %s instead' % alt
 
+        # count the number of calls (classified by msg)
+        # TODO: substitute this ugly hack (below) by a more general mechanism
+        _DEPRECATION_COUNT[msg] += 1
+        # limit the output to 1 deprecation message of each type
+        from taurus import tauruscustomsettings
+        _MAX_DEPRECATIONS_LOGGED = getattr(tauruscustomsettings,
+                                           '_MAX_DEPRECATIONS_LOGGED', None)
+        if _MAX_DEPRECATIONS_LOGGED is not None:
+            if _MAX_DEPRECATIONS_LOGGED < 0:
+                self.stack(self.Warning)
+                raise Exception(msg)
+            if _DEPRECATION_COUNT[msg] > _MAX_DEPRECATIONS_LOGGED:
+                return
+
+        if _callerinfo is None:
+            _callerinfo = self._logger.getLogObj().findCaller()
+        filename, lineno, _ = _callerinfo
+        depr_msg = warnings.formatwarning(msg, DeprecationWarning, filename, lineno)
+        self._logger.getLogObj().warning(depr_msg, **kw)
+        if dbg_msg:
+            self.debug(dbg_msg)
+            self.stack()
+        
     def error(self, msg, *args, **kw):
         """Record an error message in this object's logger. Accepted *args* and
            *kwargs* are the same as :meth:`logging.Logger.error`.
@@ -796,6 +910,29 @@ class Logger(Object):
         """
         self._logger.getLogObj().exception(msg, *args)
 
+    def flushOutput(self):
+        """Flushes the log output"""
+	pass
+    #    self.syncLog()
+
+    def syncLog(self):
+        """Synchronises the log output"""
+	pass
+    #    logger = self
+    #    synced = []
+    #    while logger is not None:
+    #        for handler in logger.log_handlers:
+    #            if handler in synced:
+    #                continue
+    #            try:
+    #                sync = getattr(handler, 'sync')
+    #            except:
+    #                continue
+    #            sync()
+    #            synced.append(handler)
+    #        logger = logger.getParent()
+
+    
     def getTaurusLogger(self):
         """ Return the Taurus logger obj 
         """
@@ -847,3 +984,25 @@ def fatal(msg, *args, **kw):
 
 def critical(msg, *args, **kw):
     return __getrootlogger().critical(msg, *args, **kw)
+
+def deprecated(*args, **kw):
+    kw['_callerinfo'] = __getrootlogger().findCaller()
+    return Logger("TaurusRootLogger").deprecated(*args, **kw)
+
+def deprecation_decorator(func=None, alt=None, rel=None, dbg_msg=None):
+    """decorator to mark methods as deprecated"""
+    if func is None:
+        return functools.partial(deprecation_decorator, alt=alt, rel=rel,
+                                 dbg_msg=dbg_msg)
+
+    def new_func(*args, **kwargs):
+        deprecated(dep=func.__name__, alt=alt, rel=rel, dbg_msg=dbg_msg)
+        return func(*args, **kwargs)
+
+    new_func.__name__ = func.__name__
+    new_func.__doc__ = '(Deprecated)\n' + (func.__doc__ or '')
+    new_func.__dict__.update(func.__dict__)
+    return new_func
+
+
+tep14_deprecation = functools.partial(deprecation_decorator, rel='tep14')

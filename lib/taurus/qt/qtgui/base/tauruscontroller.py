@@ -62,9 +62,6 @@ class TaurusBaseController(object):
     
     def widget(self):
         return self._widget()
-
-    def stateObj(self):
-        return self._stateObj
     
     def modelObj(self):
         return self.widget().getModelObj()
@@ -80,16 +77,11 @@ class TaurusBaseController(object):
             value = modelObj.getValueObj()
         return value
     
-    def stateValueObj(self):
-        stateObj = self.stateObj()
-        if stateObj is None: return None
-        return stateObj.getValueObj()
-    
     def value(self):
         valueObj = self.valueObj()
         return getattr(valueObj, "value", None)
 
-    def w_value(self):
+    def w_value(self): # TODO: adapt to tep14
         valueObj = self.valueObj()
         return getattr(valueObj, "w_value", None)
     
@@ -98,8 +90,7 @@ class TaurusBaseController(object):
         return getattr(valueObj, "quality", None)
 
     def state(self):
-        stateValueObj = self.stateValueObj()
-        return getattr(stateValueObj, "value", None)
+        return self._stateObj.state
     
     def getDisplayValue(self, write=False):
         return self.widget().getDisplayValue()
@@ -108,7 +99,7 @@ class TaurusBaseController(object):
         if evt_src == self.modelObj(): #update the "_last" values only if the event source is the model (it could be the background...) 
             if evt_type == TaurusEventType.Change or evt_type == TaurusEventType.Periodic:
                 self._last_value = evt_value
-            elif evt_type == TaurusEventType.Config:
+            elif evt_type == TaurusEventType.Config: # TODO: adapt to tep14
                 self._last_config_value = evt_value
             else:
                 self._last_error_value = evt_value
@@ -141,16 +132,10 @@ class TaurusBaseController(object):
     def _needsStateConnection(self):
         return False
     
-    def _findStateObj(self):
-        devObj = self.deviceObj()
-        if devObj is None:
-            return None
-        return devObj.getStateObj()
-    
     def _updateConnections(self, widget):
-        stateObj, newStateObj = self.stateObj(), None
+        stateObj, newStateObj = self._stateObj, None
         if self._needsStateConnection():
-            newStateObj = self._findStateObj()
+            newStateObj = self.deviceObj()
             if stateObj != newStateObj:
                 if stateObj is not None:
                     stateObj.removeListener(self)
@@ -175,9 +160,10 @@ class TaurusBaseController(object):
 class TaurusAttributeControllerHelper(object):
     
     def configObj(self):
-        attrObj = self.attrObj()
-        if attrObj is None: return None
-        return attrObj.getConfig()
+        return self.attrObj() # they are the same object since tep14
+        # attrObj = self.attrObj()
+        # if attrObj is None: return None
+        # return attrObj.getConfig()
     
     def deviceObj(self):
         attrObj = self.attrObj()
@@ -202,17 +188,12 @@ class TaurusScalarAttributeControllerHelper(TaurusAttributeControllerHelper):
         
     def _getDisplayValue(self, widget, valueObj, idx, write):
         try:
-            if write: value = valueObj.w_value
-            else: value = valueObj.value
+            if write: value = valueObj.wvalue
+            else: value = valueObj.rvalue
             if idx is not None and len(idx):
                 for i in idx: value = value[i]
-            
             if self._last_config_value is None or value is None:
-                return self.modelObj().displayValue(value)
-            else:
-                #TODO: last_config_value object to format the value
-                return self.modelObj().displayValue(value)
-                
+                return widget.displayValue(value)
         except Exception, e:
             return widget.getNoneValue()
 
@@ -244,9 +225,7 @@ class TaurusConfigurationControllerHelper(object):
         self._configParam = None
 
     def attrObj(self):
-        configObj = self.configObj()
-        if configObj is None: return None
-        return configObj.getParentObj()
+        return self.configObj()  # they are the same object since tep14
         
     def deviceObj(self):
         attrObj = self.attrObj()
@@ -256,13 +235,7 @@ class TaurusConfigurationControllerHelper(object):
     @property
     def configParam(self):
         if self._configParam is None:
-            model = self.widget().model
-            try:
-                #@todo: This works for tango, eval and epics configuration names but is not general.
-                #@todo: This should be done calling to the ConfigurationNameValidator
-                self._configParam = model[model.rfind('?configuration=')+15:]
-            except:
-                self._configParam = ''
+            self._configParam = self.widget().getModelFragmentName() or ''
         return self._configParam
 
     def getDisplayValue(self, write=False):
@@ -272,7 +245,7 @@ class TaurusConfigurationControllerHelper(object):
             return widget.getNoneValue()
         param = self.configParam
         try:
-            val = getattr(model, param)
+            val = widget.getModelFragmentObj()
             try:
                 no_val = getattr(model, "no_" + param)
                 if val.lower() == no_val.lower():
@@ -285,16 +258,20 @@ class TaurusConfigurationControllerHelper(object):
                 attr = self.attrObj()
                 if attr is not None:
                     val = val.replace('<label>', attr.label or '---')      
-                    val = val.replace('<attr_name>',attr.name or '---')
-                    val = val.replace('<attr_fullname>',attr.getFullName() or '---')
-                    val = val.replace('<dev_alias>',attr.dev_alias or '---')
-                    val = val.replace('<dev_name>',attr.dev_name or '---')
+                    val = val.replace('<attr_name>', attr.name or '---')
+                    val = val.replace('<attr_fullname>', attr.getFullName() or \
+                                      '---')
                 dev = self.deviceObj()   
-                if dev is not None:     
-                    val = val.replace('<dev_fullname>',dev.getFullName() or '---')
+                if dev is not None:
+                    val = val.replace('<dev_fullname>', dev.getFullName() or \
+                                      '---')
+                    val = val.replace('<dev_alias>', dev.getSimpleName() or \
+                                      '---')
+                    val = val.replace('<dev_name>', dev.getNormalName() or \
+                                      '---')
             else:
                 val = widget.getNoneValue()
-        except:    
+        except:
             widget.debug("Invalid configuration parameter '%s'" % param)
             val = widget.getNoneValue()
         if val is None:

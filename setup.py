@@ -35,6 +35,7 @@ import StringIO
 from distutils import log
 from distutils.core import setup, Command
 from distutils.command.build import build as dftbuild
+from distutils.command.clean import clean as dftclean
 from distutils.command.install import install as dftinstall
 from distutils.command.install_lib import install_lib as dftinstall_lib
 from distutils.command.install_scripts import install_scripts as dftinstall_scripts
@@ -73,6 +74,7 @@ packages = [
     'taurus.external',
     'taurus.external.argparse',
     'taurus.external.enum',
+    #'taurus.external.enum.enum', #todo: do we need this one?
     'taurus.external.ordereddict',
     'taurus.external.pint',
     'taurus.external.qt',
@@ -80,20 +82,27 @@ packages = [
     'taurus.external.test',
 
     'taurus.core',
+    'taurus.core.test',
     'taurus.core.util',
     'taurus.core.util.argparse',
     'taurus.core.util.decorator',
     'taurus.core.util.report',
+    'taurus.core.util.test',
     'taurus.core.utils',  # old, deprecated: maintain for compatibility
 
     'taurus.core.resource',
 
-    'taurus.core.simulation',
+    # 'taurus.core.spec',
+    
+    # 'taurus.core.spec',
 
     'taurus.core.evaluation',
+    'taurus.core.evaluation.test',
 
     'taurus.core.tango',
     'taurus.core.tango.img',
+    'taurus.core.tango.util',
+    'taurus.core.tango.test',
 
     'taurus.console',
     'taurus.console.util',
@@ -151,6 +160,7 @@ packages = [
     'taurus.qt.qtgui.util',
     'taurus.qt.qtgui.util.test',
     'taurus.qt.qtgui.util.test.test_ui',
+    'taurus.qt.qtgui.util.test.test_ui.mywidget3',
     'taurus.qt.uic',
 ]
 
@@ -176,19 +186,23 @@ provides = [
 
 requires = [
     'numpy (>=1.1)',
-    'PyTango (>=7.1)',
-    'PyQt4 (>=4.4)',
-    'PyQt4.Qwt5 (>=5.2.0)',   # plotting
-    'ply (>=2.3)',            # jdraw parser
-    'lxml (>=2.1)',           # tau2taurus, taurusuic4
-    'spyder (>=2.2)',         # shell, editor
+    #########################################################################
+    # TODO: if using setuptools, the following can be moved to extra_requires 
+    'PyTango (>=7.1)', # [Taurus-Tango]
+    'PyQt4 (>=4.4)', # [Taurus-Qt]
+    'PyQt4.Qwt5 (>=5.2.0)',  # [Taurus-Qt-Plot]
+    'ply (>=2.3)', # [Taurus-Qt-Synoptic]
+    'lxml (>=2.1)', #  [Taurus-TaurusGUI]
+    'spyder (>=2.2)', # [Taurus-Editor] --> or maybe move it to sardana
+    #
+    #########################################################################
 ]
 
 package_data = {
-    'taurus.core.epics'        : ['__taurus_plugin__'],
+    # 'taurus.core.epics'        : ['__taurus_plugin__'],
     'taurus.core.evaluation'   : ['__taurus_plugin__'],
     'taurus.core.resource'     : ['__taurus_plugin__'],
-    'taurus.core.simulation'   : ['__taurus_plugin__'],
+    # 'taurus.core.spec'         : ['__taurus_plugin__'],
     'taurus.core.tango'        : ['__taurus_plugin__'],
 
     'taurus.qt.qtgui.resource' : ['*.rcc'],
@@ -206,6 +220,7 @@ package_data = {
     'taurus.qt.qtgui.taurusgui': ['ui/*.ui'],
     'taurus.qt.qtgui.extra_guiqwt': ['ui/*.ui'],
     'taurus.qt.qtgui.util.test.test_ui' : ['ui/*.ui', 'ui/mywidget2/*.ui'],
+    'taurus.qt.qtgui.util.test.test_ui.mywidget3' : ['ui/*.ui'],
 }
 
 
@@ -703,13 +718,60 @@ class install(dftinstall):
     sub_commands.append(('install_html', has_html))
 
 
+class clean(dftclean):
+    def run(self):
+        dftclean.run(self)
+
+        # This is a very crude approach to clean the garbage created by taurus
+        # outside of the build dir when running the build command
+        # see: https://sourceforge.net/p/sardana/tickets/324/
+        import glob
+        from distutils.dir_util import remove_tree
+
+        # collect the garbage *files* to be deleted
+        garbage = []
+
+        resource = abspath('lib', 'taurus', 'qt', 'qtgui', 'resource')
+        garbage.extend(glob.glob(os.path.join(resource, '*.rcc')))
+        garbage.extend(glob.glob(os.path.join(resource, '*.qrc')))
+        garbage.append(os.path.join(resource, 'catalog.html'))
+
+        jdraw = abspath('lib', 'taurus', 'qt', 'qtgui', 'graphic', 'jdraw')
+        garbage.append(os.path.join(jdraw, 'jdraw_lextab.py'))
+        garbage.append(os.path.join(jdraw, 'jdraw_yacctab.py'))
+
+        doc_devel = abspath('doc', 'source', 'devel')
+        garbage.append(os.path.join(doc_devel, 'catalog.html'))
+
+        doc = abspath('doc')
+        garbage.append(os.path.join(doc, '~thumbnails.zip'))
+
+        # delete the garbage files
+        for fn in garbage:
+            if os.path.exists(fn):
+                log.info("removing '%s'", fn)
+                if self.dry_run:
+                    continue
+                os.remove(fn)
+            else:
+                log.debug("'%s' does not exist -- can't clean it", fn)
+
+        # now delete the api dir
+        api_dir = os.path.join(doc_devel, 'api')
+        if os.path.exists(api_dir):
+            remove_tree(api_dir, dry_run=self.dry_run)
+        else:
+            log.debug("'%s' does not exist -- can't clean it", api_dir)
+
+
 cmdclass = { 'build' : build,
              'build_resources' : build_resources,
              'install' : install,
              'install_lib': install_lib,
              'install_man' : install_man,
              'install_html' : install_html,
-             'install_scripts' : install_scripts}
+             'install_scripts' : install_scripts,
+             'clean' : clean }
 
 if sphinx:
     from sphinx.setup_command import BuildDoc

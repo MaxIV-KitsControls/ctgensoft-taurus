@@ -98,7 +98,7 @@ class TaurusBaseImageItem(TaurusBaseComponent):
         See: 
           - http://code.google.com/p/guiqwt/issues/detail?id=44 and
           - https://sourceforge.net/tracker/?func=detail&atid=484769&aid=3603991&group_id=57612
-          - https://sourceforge.net/p/sardana/tickets/70/
+          - https://sourceforge.net/p/tauruslib/tickets/33/
         '''
         try:
             dtype = data.dtype
@@ -109,7 +109,7 @@ class TaurusBaseImageItem(TaurusBaseComponent):
 
         if dtype not in (float, numpy.double, numpy.int32, numpy.uint16,
                           numpy.int16, numpy.uint8, numpy.int8, bool): 
-            #note: numpy.uint32 was not included because of https://sourceforge.net/p/sardana/tickets/70/    
+            #note: numpy.uint32 was not included because of https://sourceforge.net/p/tauruslib/tickets/33/    
             try: 
                 self.debug('casting to numpy.int32')
                 v = numpy.int32(v)  
@@ -152,7 +152,7 @@ class TaurusEncodedBaseImageItem(TaurusBaseImageItem):
 
             if dtype not in (float, numpy.double, numpy.int32, numpy.uint16,
                              numpy.int16, numpy.uint8, numpy.int8, bool): 
-            #note: numpy.uint32 was not included because of https://sourceforge.net/p/sardana/tickets/70/    
+            #note: numpy.uint32 was not included because of https://sourceforge.net/p/tauruslib/tickets/33/    
                 try:
                     self.debug('casting to numpy.int32')
                     v = numpy.int32(v)  
@@ -537,7 +537,7 @@ def test1():
     #model1 = 'sys/tg_test/1/long64_image_ro'
     model1 = 'sys/tg_test/1/ulong_image_ro'
     taurusimage = make.image(taurusmodel= model1)
-    #taurusrgbimage = make.rgbimage(taurusmodel= 'eval://array([[[ 222, 0, 0], [0, 222, 0]], [[0, 0, 222], [222, 222, 222]]])')
+    #taurusrgbimage = make.rgbimage(taurusmodel= 'eval:array([[[ 222, 0, 0], [0, 222, 0]], [[0, 0, 222], [222, 222, 222]]])')
     #taurusxyimage= make.xyimage(taurusmodel= model1)
     #taurusxyimage.set_xy(numpy.arange(251)*10,numpy.arange(251)*100 )
     

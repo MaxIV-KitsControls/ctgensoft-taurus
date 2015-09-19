@@ -39,14 +39,14 @@ __all__ = ["TaurusTreeDevicePartItem", "TaurusTreeDeviceDomainItem",
 __docformat__ = 'restructuredtext'
 
 from taurus.external.qt import Qt
-from taurus.core.taurusbasetypes import TaurusElementType, TaurusSWDevHealth
-from taurus.core.taurusdatabase import TaurusInfo, TaurusDatabase
+from taurus.core.taurusbasetypes import TaurusElementType, TaurusDevState
 import taurus.qt.qtcore.mimetypes
+
+from taurus.core.tango.tangodatabase import TangoInfo, TangoDatabase
 
 from .taurusmodel import TaurusBaseTreeItem, TaurusBaseModel, TaurusBaseProxyModel
 
 ElemType = TaurusElementType
-DevHealth = TaurusSWDevHealth
 
 def getElementTypeIcon(*args, **kwargs):
     """Wrapper to prevent loading qtgui when this module is imported"""
@@ -63,19 +63,19 @@ def getElementTypeSize(*args, **kwargs):
     import taurus.qt.qtgui.resource
     return taurus.qt.qtgui.resource.getElementTypeSize(*args, **kwargs)
 
-def getSWDevHealthIcon(*args, **kwargs):
+def getDevStateIcon(*args, **kwargs):
     """Wrapper to prevent loading qtgui when this module is imported"""
     import taurus.qt.qtgui.resource
-    return taurus.qt.qtgui.resource.getSWDevHealthIcon(*args, **kwargs)
+    return taurus.qt.qtgui.resource.getDevStateIcon(*args, **kwargs)
 
-def getSWDevHealthToolTip(*args, **kwargs):
+def getDevStateToolTip(*args, **kwargs):
     """Wrapper to prevent loading qtgui when this module is imported"""
     import taurus.qt.qtgui.resource
-    return taurus.qt.qtgui.resource.getSWDevHealthToolTip(*args, **kwargs)
+    return taurus.qt.qtgui.resource.getDevStateToolTip(*args, **kwargs)
 
 
 class TaurusTreeDbBaseItem(TaurusBaseTreeItem):
-    DisplayFunc = TaurusInfo.name
+    DisplayFunc = TangoInfo.name
 
 
 class TaurusTreeDevicePartItem(TaurusTreeDbBaseItem):
@@ -144,7 +144,7 @@ class TaurusTreeSimpleDeviceItem(TaurusTreeDbBaseItem):
         elif role == ElemType.DeviceClass:
             return obj.klass().name()
         elif role == ElemType.Exported:
-            return obj.health()
+            return obj.state()
         elif role == ElemType.Host:
             return obj.host()
         elif role == ElemType.Domain:
@@ -164,9 +164,6 @@ class TaurusTreeSimpleDeviceItem(TaurusTreeDbBaseItem):
 class TaurusTreeDeviceItem(TaurusTreeDbBaseItem):
     """A node designed to represent a device"""
 
-    SearchForAttributeHealth = DevHealth.Exported, DevHealth.ExportedAlive, \
-                               DevHealth.NotExportedAlive
-
     def child(self, row):
         self.updateChilds()
         return super(TaurusTreeDeviceItem, self).child(row)
@@ -177,7 +174,7 @@ class TaurusTreeDeviceItem(TaurusTreeDbBaseItem):
         if nb > 0:
             return True
         data = self.itemData()
-        if not data.health() in self.SearchForAttributeHealth:
+        if data.state() != TaurusDevState.Ready:
             return False
         return True
 
@@ -186,7 +183,7 @@ class TaurusTreeDeviceItem(TaurusTreeDbBaseItem):
         if nb > 0:
             return nb
         data = self.itemData()
-        if not data.health() in self.SearchForAttributeHealth:
+        if data.state() != TaurusDevState.Ready:
             return 0
         self.updateChilds()
         return super(TaurusTreeDeviceItem, self).childCount()
@@ -212,7 +209,7 @@ class TaurusTreeDeviceItem(TaurusTreeDbBaseItem):
         elif role == ElemType.DeviceClass:
             return obj.klass().name()
         elif role == ElemType.Exported:
-            return obj.health()
+            return obj.state()
         elif role == ElemType.Host:
             return obj.host()
         elif role == ElemType.Domain:
@@ -301,7 +298,7 @@ class TaurusTreeServerItem(TaurusTreeDbBaseItem):
         elif role == ElemType.ServerInstance:
             return self._itemData.serverInstance()
         elif role == ElemType.Exported:
-            return self._itemData.health()
+            return self._itemData.state()
         elif role == ElemType.Host:
             return self._itemData.host()
 
@@ -326,7 +323,7 @@ class TaurusTreeFullServerItem(TaurusTreeDbBaseItem):
         elif role == ElemType.ServerInstance:
             return self._itemData.fullName()
         elif role == ElemType.Exported:
-            return self._itemData.health()
+            return self._itemData.state()
         elif role == ElemType.Host:
             return self._itemData.host()
 
@@ -429,15 +426,15 @@ class TaurusDbBaseModel(TaurusBaseModel):
             if column == 0:
                 ret = self.roleIcon(taurus_role)
             if taurus_role == ElemType.Exported:
-                health = item.data(index)
-                ret = getSWDevHealthIcon(health)
+                state = item.data(index)
+                ret = getDevStateIcon(state)
         elif role == Qt.Qt.ToolTipRole:
             ret = item.toolTip(index)
             if ret is None:
                 data = item.data(index)
                 if data is not None:
                     if taurus_role == ElemType.Exported:
-                        ret = getSWDevHealthToolTip(data)
+                        ret = getDevStateToolTip(data)
                     else:
                         ret = self.roleToolTip(taurus_role)
         #elif role == Qt.Qt.SizeHintRole:
@@ -449,7 +446,7 @@ class TaurusDbBaseModel(TaurusBaseModel):
     def setupModelData(self, data):
         if data is None:
             return
-        if isinstance(data, TaurusDatabase):
+        if isinstance(data, TangoDatabase):
             data = data.cache()
         devices = data.devices()
 
@@ -478,7 +475,7 @@ class TaurusDbSimpleDeviceAliasModel(TaurusDbBaseModel):
     def setupModelData(self, data):
         if data is None:
             return
-        if isinstance(data, TaurusDatabase):
+        if isinstance(data, TangoDatabase):
             data = data.cache()
         devices = data.devices()
 
@@ -500,7 +497,7 @@ class TaurusDbPlainDeviceModel(TaurusDbBaseModel):
     def setupModelData(self, data):
         if data is None:
             return
-        if isinstance(data, TaurusDatabase):
+        if isinstance(data, TangoDatabase):
             data = data.cache()
         devices = data.devices()
 
@@ -523,7 +520,7 @@ class TaurusDbDeviceModel(TaurusDbBaseModel):
     def setupModelData(self, data):
         if data is None:
             return
-        if isinstance(data, TaurusDatabase):
+        if isinstance(data, TangoDatabase):
             data = data.deviceTree()
 
         rootItem = self._rootItem
@@ -549,7 +546,7 @@ class TaurusDbPlainServerModel(TaurusDbBaseModel):
         if data is None:
             return
 
-        if isinstance(data, TaurusDatabase):
+        if isinstance(data, TangoDatabase):
             data = data.cache()
 
         servers = data.servers()
@@ -577,7 +574,7 @@ class TaurusDbServerModel(TaurusDbBaseModel):
         if data is None:
             return
 
-        if isinstance(data, TaurusDatabase):
+        if isinstance(data, TangoDatabase):
             data = data.cache()
 
         servers, klasses, devices = data.servers(), data.klasses(), data.devices()
@@ -625,7 +622,7 @@ class TaurusDbDeviceClassModel(TaurusDbBaseModel):
         if data is None:
             return
 
-        if isinstance(data, TaurusDatabase):
+        if isinstance(data, TangoDatabase):
             data = data.cache()
 
         rootItem = self._rootItem

@@ -31,6 +31,8 @@ from taurus.external.qt import Qt
 
 from taurus.core.util.colors import ColorPalette, \
     DEVICE_STATE_DATA, ATTRIBUTE_QUALITY_DATA
+from taurus.core.taurusbasetypes import AttrQuality
+from taurus.core.tango import DevState # TODO: Tango-centric
 
 class QtColorPalette(ColorPalette):
 
@@ -87,7 +89,7 @@ class QtColorPalette(ColorPalette):
 
         return ( b[name], f[name] )
 
-import PyTango
 
-QT_DEVICE_STATE_PALETTE = QtColorPalette(DEVICE_STATE_DATA, PyTango.DevState)
-QT_ATTRIBUTE_QUALITY_PALETTE = QtColorPalette(ATTRIBUTE_QUALITY_DATA, PyTango.AttrQuality)
+QT_DEVICE_STATE_PALETTE = QtColorPalette(DEVICE_STATE_DATA, DevState)
+QT_ATTRIBUTE_QUALITY_PALETTE = QtColorPalette(ATTRIBUTE_QUALITY_DATA, 
+                                              AttrQuality)

@@ -37,6 +37,7 @@ import threading
 import PyTango
 
 from taurus.external.qt import Qt
+from taurus.external.enum import Enum
 
 import taurus
 from taurus.core.util import eventfilters
@@ -54,39 +55,6 @@ from taurus.qt.qtcore.mimetypes import TAURUS_ATTR_MIME_TYPE, TAURUS_DEV_MIME_TY
 from taurus.qt.qtgui.util import ActionFactory
 
 DefaultNoneValue = "-----"
-
-TTANGO_TO_TQT = {
-    str                        : 'QString',
-    int                        : 'int',
-    long                       : 'long',
-    float                      : 'float',
-    bool                       : 'bool',
-    list                       : 'QList',
-    tuple                      : 'QList',
-    dict                       : 'QMap',
-    PyTango.ArgType.DevDouble          : 'float',
-    PyTango.ArgType.DevFloat           : 'float',
-    PyTango.ArgType.DevLong            : 'int',
-    PyTango.ArgType.DevShort           : 'int',
-    PyTango.ArgType.DevBoolean         : 'bool',
-    PyTango.ArgType.DevUChar           : 'int',
-    PyTango.ArgType.DevState           : 'int',
-    PyTango.ArgType.DevString          : 'QString',
-    PyTango.ArgType.DevULong           : 'int',
-    PyTango.ArgType.DevLong64          : 'long',
-    PyTango.ArgType.DevULong64         : 'long',
-    PyTango.ArgType.DevUShort          : 'int',
-    PyTango.ArgType.DevVarBooleanArray : 'QList',
-    PyTango.ArgType.DevVarCharArray    : 'QList',
-    PyTango.ArgType.DevVarDoubleArray  : 'QList',
-    PyTango.ArgType.DevVarFloatArray   : 'QList',
-    PyTango.ArgType.DevVarLongArray    : 'QList',
-    PyTango.ArgType.DevVarLong64Array  : 'QList',
-    PyTango.ArgType.DevVarShortArray   : 'QList',
-    PyTango.ArgType.DevVarStringArray  : 'QList',
-    PyTango.ArgType.DevVarULongArray   : 'QList',
-    PyTango.ArgType.DevVarUShortArray  : 'QList',
-}
 
 class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
     """A generic Taurus component.
@@ -106,6 +74,7 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
         """Initialization of TaurusBaseComponent"""
         self.modelObj = None
         self.modelName = ''
+        self.modelFragmentName = None
         self.noneValue = DefaultNoneValue
         self._designMode = designMode
         self.call__init__(TaurusListener, name, parent)
@@ -165,7 +134,7 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
 
     
     def getTaurusManager(self):
-        """Returns the the taurus manager singleton. This is just a helper method.
+        """Returns the taurus manager singleton. This is just a helper method.
         It is the equivalent of doing::
             
             import taurus
@@ -175,17 +144,25 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
         """
         return taurus.Manager()
     
-    def getTaurusFactory(self, scheme=None):
-        """Returns the the taurus factory singleton for the given scheme.
+    def getTaurusFactory(self, scheme=''):
+        """Returns the taurus factory singleton for the given scheme.
         This is just a helper method. It is the equivalent of doing::
 
             import taurus
             factory = taurus.Factory(scheme)
         
-        :param scheme: (str or None) the scheme. None defaults to 'tango'.
+        :param scheme: (str or None) the scheme. If scheme is an empty string,
+                       or is not passed, the scheme will be obtained from the
+                       model name. For backwards compatibility (but deprecated),
+                       passing None is equivalent to 'tango'.
         
         :return: (taurus.core.taurusfactory.TaurusFactory) the TaurusFactory
         """
+        if scheme == '':
+            scheme = taurus.getSchemeFromName(self.getModelName() or '')
+        if scheme is None:
+            scheme = 'tango'
+
         return taurus.Factory(scheme)
     
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
@@ -503,12 +480,19 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
         modelName = str(modelName)
         if parent:
             modelClass = self.getModelClass()
-            if not modelClass is None:
+            if modelClass is not None:
                 parent_model = self.getParentModelObj()
                 modelName = modelClass.buildModelName(parent_model, modelName)
         self._detach()
         self.modelName = modelName
         self._attach()
+
+        # update modelFragmentName
+        try:
+            v = self.modelObj.getNameValidator()
+            self.modelFragmentName = v.getUriGroups(self.modelName)['fragment']
+        except AttributeError:
+            self.modelFragmentName = None
     
     def getModelName(self):
         """Returns the current model name.
@@ -516,7 +500,17 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
         :return: (str) the model name
         """
         return self.modelName
-
+    
+    def getFullModelName(self):
+        """Returns the full name of the current model object.
+        
+        :return: (str) the model name
+        """
+        obj = self.getModelObj()
+        if obj is None:
+            return None
+        return obj.getFullName()
+    
     def getParentModelName(self):
         """Returns the parent model name or an empty string if the component
         has no parent
@@ -571,12 +565,38 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
         :param cache: (bool) if set to True (default) use the cache value. If set to 
                       False will force a connection to the server.
             
-        :return: (PyTango.DeviceAttribute) the tango value object.
+        :return: (TaurusAttrValue) the tango value object.
         """
         if self.modelObj is None:
             return None
         return self.modelObj.getValueObj(cache=cache)
-        
+
+    def getModelFragmentObj(self, fragmentName=None):
+        """Returns a fragment object of the model. A fragment of a model is a
+        python attribute of the model object.
+
+        Fragment names including dots will be used to recursively get fragments
+        of fragments.
+
+        For a simple fragmentName (no dots), this is roughly equivalent to
+        getattr(self.getModelObj(), fragmentName)
+
+        If the model does not have that fragment, :class:`AttributeError` is
+        raised (other exceptions may be raised when accessing the fragment as
+        well)
+
+        :param fragmentName: (str or None) the returned value will correspond to
+                         the given fragmentName. If None passed,
+                         self.modelFragmentName will be used, and if None is
+                         set, the defaultFragmentName of the model will be used
+                         instead.
+
+        :return: (obj) the member of the modelObj referred by the fragment.
+        """
+        if fragmentName is None: # no fragmentName passed in kwargs
+            fragmentName = self.modelFragmentName
+        return self.modelObj.getFragmentObj(fragmentName)
+
     def getFormatedToolTip(self,cache=True):
         """Returns a string with contents to be displayed in a tooltip.
             
@@ -605,7 +625,7 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
             ret += '<TR><TD WIDTH="80" ALIGN="RIGHT" VALIGN="MIDDLE"><B>%s:</B></TD><TD>%s</TD></TR>' % (id.capitalize(), value)
         ret += '</TABLE>'
         return ret
-    
+
     def displayValue(self, v):
         """Returns a string representation of the given value
         
@@ -613,28 +633,30 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
         
         :return: (str) a string representing the given value
         """
-        if self.modelObj is None:
-            return str(v)
-        ret = self.modelObj.displayValue(v)
-        if ret is None: ret = self.getNoneValue()
-        return ret
+        if isinstance(v, Enum):
+            return v.name
+        return str(v)
         
-    def getDisplayValue(self, cache=True):
+    def getDisplayValue(self, cache=True, fragmentName=None):
         """Returns a string representation of the model value associated with
         this component.
             
-        :param cache: (bool) if set to True (default) use the cache value. If set to 
-                      False will force a connection to the server.
+        :param cache: (bool) (ignored, just for bck-compat).
+        :param fragmentName: (str or None) the returned value will correspond to
+                         the given fragmentName. If None passed,
+                         self.modelFragmentName will be used, and if None is
+                         set, the defaultFragmentName of the model will be used
+                         instead.
 
         :return: (str) a string representation of the model value.
-        """        
+        """
         if self.modelObj is None:
             return self.getNoneValue()
-        
-        ret = self.modelObj.getDisplayValue(cache)
-        if ret is None:
+        try:
+            v = self.getModelFragmentObj(fragmentName=fragmentName)
+        except:
             return self.getNoneValue()
-        return ret
+        return self.displayValue(v)
 
     def setNoneValue(self, v):
         """Sets the new string representation when no model or no model value exists.
@@ -720,7 +742,8 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
     
     def _attach(self):
         """Attaches the component to the taurus model.
-        In general it should not be necessary to overwrite this method in a subclass.
+        In general it should not be necessary to overwrite this method in a
+        subclass.
         
         :return: (bool) True if success in attachment or False otherwise.
         """
@@ -750,7 +773,7 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
                 self._attached = False
                 self.debug("Exception occured while trying to attach '%s'" % self.modelName)
                 self.traceback()
-                
+
         self.postAttach()
         return self._attached
     
@@ -926,11 +949,6 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
             return
         
         self._localModelName = model
-        
-#        # if in offline mode don't bother trying to register
-#        opMode = taurus.core.taurusmanager.TaurusManager().getOperationMode()
-#        if opMode == taurus.core.taurusbasetypes.OperationMode.OFFLINE:
-#            return
 
         parent_widget = None
         try:
@@ -1559,7 +1577,8 @@ class TaurusBaseWidget(TaurusBaseComponent):
         :param ops: (sequence<taurus.core.taurusoperation.TaurusOperation> or None) list of operations to apply. 
                     If None is given (default) the component fetches the pending operations
                     
-        :return: (bool) False if the apply was aborted by the user. True otherwise.
+        :return: (bool) False if the apply was aborted by the user or if the
+                 widget is in design mode. True otherwise.
         """
         
         if ops is None: ops = self.getPendingOperations()
@@ -1586,6 +1605,11 @@ class TaurusBaseWidget(TaurusBaseComponent):
             result = warningDlg.exec_()
             if result != Qt.QMessageBox.Ok:
                 return False
+        
+        if self._designMode:
+            self.info('Refusing to apply operation while in design mode')
+            return False
+        
         self.applyPendingOperations(ops)
         return True
 
@@ -1734,7 +1758,6 @@ class TaurusBaseWritableWidget(TaurusBaseWidget):
                            (even if the forceApply mode is disabled by 
                            :meth:`setForceApply`)
         '''
-        
         if self.hasPendingOperations():
             applied = self.safeApplyOperations()
             if applied: 

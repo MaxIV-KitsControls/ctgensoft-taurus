@@ -26,8 +26,6 @@
 """event filters library to be used with 
 :meth:`taurus.qt.qtgui.base.TaurusBaseComponent.setFilters`"""
 
-import PyTango
-import taurus
 
 def IGNORE_ALL(s, t, v):
     '''Will discard all events'''
@@ -35,41 +33,42 @@ def IGNORE_ALL(s, t, v):
 
 def ONLY_CHANGE(s, t, v):
     '''Only change events pass'''
-    if t == taurus.core.taurusbasetypes.TaurusEventType.Change: return s,t,v
+    from taurus.core import TaurusEventType
+    if t == TaurusEventType.Change: return s,t,v
     else: return None
 
 def IGNORE_CHANGE(s, t, v):
     '''Config events are discarded'''
-    if t != taurus.core.taurusbasetypes.TaurusEventType.Change: return s,t,v
+    from taurus.core import TaurusEventType
+    if t != TaurusEventType.Change: return s,t,v
     else: return None
 
 def ONLY_CHANGE_AND_PERIODIC(s, t, v):
     '''Only change events pass'''
-    if t in [taurus.core.taurusbasetypes.TaurusEventType.Change, 
-             taurus.core.taurusbasetypes.TaurusEventType.Periodic]: 
+    from taurus.core import TaurusEventType
+    if t in [TaurusEventType.Change, 
+            TaurusEventType.Periodic]: 
         return s,t,v
     else: return None
 
 def IGNORE_CHANGE_AND_PERIODIC(s, t, v):
     '''Config events are discarded'''
-    if t not in [taurus.core.taurusbasetypes.TaurusEventType.Change, 
-                 taurus.core.taurusbasetypes.TaurusEventType.Periodic]: 
+    from taurus.core import TaurusEventType
+    if t not in [TaurusEventType.Change, 
+                TaurusEventType.Periodic]: 
         return s,t,v
     else: return None
     
 def ONLY_CONFIG(s, t, v):
     '''Only config events pass'''
-    if t == taurus.core.taurusbasetypes.TaurusEventType.Config: return s,t,v
+    from taurus.core import TaurusEventType
+    if t == TaurusEventType.Config: return s,t,v
     else: return None
     
 def IGNORE_CONFIG(s, t, v):
     '''Config events are discarded'''
-    if t != taurus.core.taurusbasetypes.TaurusEventType.Config: return s,t,v
-    else: return None
-    
-def ONLY_VALID(s, t, v):
-    '''Only events whose quality is VALID pass'''
-    if getattr(v,'quality',None) == PyTango.AttrQuality.ATTR_VALID: return s,t,v
+    from taurus.core import TaurusEventType
+    if t != TaurusEventType.Config: return s,t,v
     else: return None
     
 def IGNORE_FAKE(s, t, v):
@@ -77,10 +76,16 @@ def IGNORE_FAKE(s, t, v):
     if v is not None: return s,t,v
     else: return None
 
+def ONLY_VALID(s, t, v):
+    '''Only events whose quality is VALID pass'''
+    from taurus.core import AttrQuality
+    if t == AttrQuality.ATTR_VALID: return s,t,v
+    else: return None
+
 
 class EventValueMap(dict):
     """A filter destined to change the original value into another one according
-    to a given map. Example::
+    to a given map. Example:
            
         filter = EventValueMap({1:"OPEN", 2:"CHANGING", 3:"CLOSED"})
        
@@ -91,27 +96,21 @@ class EventValueMap(dict):
     For now it only supports simple types: str, int, long, float, bool
     """
 
-    PYTYPE_TO_TANGO = {
-        str   : PyTango.DevString,
-        int   : PyTango.DevLong,
-        long  : PyTango.DevLong64,
-        float : PyTango.DevDouble,
-        bool  : PyTango.DevBoolean,
-    }
-
     def __call__(self, s, t, v):
-        if not t in (taurus.core.taurusbasetypes.TaurusEventType.Change, 
-                     taurus.core.taurusbasetypes.TaurusEventType.Periodic):
+        import copy
+        from taurus.core import TaurusEventType, DataType
+        
+        if not t in (TaurusEventType.Change, TaurusEventType.Periodic):
             return s, t, v
         if v is None:
             return s, t, v
         
         # make a copy
-        v = PyTango.DeviceAttribute(v)
+        v = copy.copy(v)
         
-        v.value = self.get(v.value, v.value)
+        v.value = self.get(v.rvalue, v.rvalue)
         
-        v.type = EventValueMap.PYTYPE_TO_TANGO.get(type(v.value), v.type)
+        v.type = DataType.from_python_type(type(v.rvalue), v.type)
         return s, t, v
 
 
@@ -162,7 +161,7 @@ def filterEvent(evt_src=-1, evt_type=-1, evt_value=-1, filters=()):
     unless one of them returns None (in which case the event is discarded)
 
     :param evt_src: (object) object that triggered the event
-    :param evt_type: (taurus.core.taurusbasetypes.TaurusEventType) type of event
+    :param evt_type: (TaurusEventType) type of event
     :param evt_value: (object) event value
     :param filters: (sequence<callable>) a sequence of callables, each returning
                     either None (to discard the event) or the tuple (with 

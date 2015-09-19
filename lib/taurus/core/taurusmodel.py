@@ -85,7 +85,7 @@ class TaurusModel(Logger):
     
     @classmethod
     def factory(cls):
-        raise RuntimeError("TaurusModel::factory cannot be called")
+        raise NotImplementedError("TaurusModel.factory cannot be called")
 
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
     # API for naming
@@ -93,7 +93,8 @@ class TaurusModel(Logger):
 
     @classmethod
     def getTaurusElementType(cls):
-        raise RuntimeError("TaurusModel::getTaurusElementType cannot be called")
+        raise NotImplementedError("TaurusModel.getTaurusElementType cannot" \
+                                  " be called")
 
     def getFullName(self):
         return self._full_name
@@ -105,16 +106,17 @@ class TaurusModel(Logger):
         return self._simp_name
 
     @classmethod
-    def isValid(cls, name, level = MatchLevel.ANY):
-        return cls.getNameValidator().isValid(name, level)
+    def isValid(cls, *args, **kwargs):
+        return cls.getNameValidator().isValid(*args, **kwargs)
 
     @classmethod
     def buildModelName(cls, parent_model, relative_name):
-        raise RuntimeError("TaurusModel::buildModelName cannot be called")
+        raise NotImplementedError("TaurusModel.buildModelName cannot be called")
     
     @classmethod
     def getNameValidator(cls):
-        raise RuntimeError("TaurusModel::getNameValidator cannot be called")
+        raise NotImplementedError("TaurusModel.getNameValidator cannot be"
+                                  "called")
             
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
     # API for hierarchy access 
@@ -146,16 +148,11 @@ class TaurusModel(Logger):
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
     # API for value access 
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
-    
-    def getValueObj(self,cache=True):
-        raise RuntimeError("TaurusModel::getValueObj cannot be called")
-    
-    def getDisplayValue(self,cache=True):
-        raise RuntimeError("TaurusModel::getDisplayValue cannot be called")
-    
+
     def getDisplayDescrObj(self,cache=True):
         """A brief description of the model. Can be used as tooltip, for example"""
-        raise RuntimeError("TaurusModel::getDisplayDescrObj cannot be called")
+        raise NotImplementedError("TaurusModel.getDisplayDescrObj cannot be" \
+                                  " called")
     
     def getDisplayName(self,cache=True, complete=True):
         full_name = self.getFullName()
@@ -169,7 +166,36 @@ class TaurusModel(Logger):
         else:
             ret = full_name.upper()
         return ret
-            
+
+    def getFragmentObj(self, fragmentName=None):
+        """Returns a fragment object of the model. A fragment of a model is a
+        python attribute of the model object.
+
+        Fragment names including dots will be used to recursively get fragments
+        of fragments.
+
+        For a simple fragmentName (no dots), this is roughly equivalent to
+        getattr(self, fragmentName)
+
+        If the model does not have the fragment, :class:`AttributeError` is
+        raised
+
+        :param fragmentName: (str or None) the returned value will correspond to
+                         the given fragmentName. If None is passed the
+                         defaultFragmentName will be used instead.
+
+        :return: (obj) the member of the modelObj referred by the fragment.
+        """
+        if fragmentName is None:
+            fragmentName = self.defaultFragmentName
+        obj = self
+        for fn in fragmentName.split('.'):
+            if fn == '':
+                # avoid a generic Exception, make it AttributeError instead
+                raise AttributeError('Cannot get empty fragment')
+            obj = getattr(obj, fn)
+        return obj
+
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
     # API for listeners
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-

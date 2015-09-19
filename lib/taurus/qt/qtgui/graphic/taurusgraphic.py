@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import PyTango
 
 #############################################################################
 ##
@@ -41,16 +40,21 @@ import types
 import Queue
 
 from taurus import Manager
+from taurus.core import AttrQuality, DataType
 from taurus.core.util.containers import CaselessDefaultDict
 from taurus.core.util.log import Logger
-from taurus.core.taurusvalidator import DeviceNameValidator, AttributeNameValidator
 from taurus.core.taurusdevice import TaurusDevice
 from taurus.core.taurusattribute import TaurusAttribute
 from taurus.core.util.enumeration import Enumeration
+# TODO: tango-centric!
+from taurus.core.tango import DevState
+from taurus.core.tango.tangovalidator import (TangoDeviceNameValidator,
+                                              TangoAttributeNameValidator)
 from taurus.external.qt import Qt
 from taurus.qt.qtgui.base import TaurusBaseComponent
 from taurus.qt.qtgui.util import (QT_ATTRIBUTE_QUALITY_PALETTE, QT_DEVICE_STATE_PALETTE,
                                   ExternalAppAction, TaurusWidgetFactory)
+
 
 SynopticSelectionStyle = Enumeration("SynopticSelectionStyle", [
     # A blue ellipse is displayed around the selected objects
@@ -61,11 +65,12 @@ SynopticSelectionStyle = Enumeration("SynopticSelectionStyle", [
 
 def parseTangoUri(name):
     from taurus.core import tango
-    validator = {tango.TangoDevice    : DeviceNameValidator,
-                 tango.TangoAttribute : AttributeNameValidator }
-    try: 
-        params = validator[tango.TangoFactory().findObjectClass(name)]().getParams(name)
-        return (params if 'devicename' in params else None)
+    validator = {tango.TangoDevice    : TangoDeviceNameValidator,
+                 tango.TangoAttribute : TangoAttributeNameValidator }
+    try:
+        val = validator[tango.TangoFactory().findObjectClass(name)]()
+        params = val.getUriGroups(name)
+        return (params if '_devslashname' in params else None)
     except: 
         return None
 
@@ -289,9 +294,9 @@ class TaurusGraphicsScene(Qt.QGraphicsScene):
         alnum = '(?:[a-zA-Z0-9-_\*]|(?:\.\*))(?:[a-zA-Z0-9-_\*]|(?:\.\*))*'
         target = str(item_name).strip().split()[0].lower().replace('/state','') #If it has spaces only the first word is used
         #Device names should match also its attributes or only state?
-        if not strict and AttributeNameValidator().getParams(target):
+        if not strict and TangoAttributeNameValidator().getUriGroups(target):
             target = target.rsplit('/',1)[0]
-        if DeviceNameValidator().getParams(target): 
+        if TangoDeviceNameValidator().getUriGroups(target):
             if strict: target+='(/state)?'
             else: target+='(/'+alnum+')?'
         if not target.endswith('$'): target+='$' 
@@ -996,7 +1001,7 @@ class TaurusGraphicsAttributeItem(TaurusGraphicsItem):
                 quality = None
                 if v:
                     quality = v.quality
-                if quality == PyTango.AttrQuality.ATTR_VALID and self._validBackground:
+                if quality == AttrQuality.ATTR_VALID and self._validBackground:
                     background = self._validBackground
                 else:
                     background, _ = QT_ATTRIBUTE_QUALITY_PALETTE.qcolor(quality)
@@ -1038,12 +1043,11 @@ class TaurusGraphicsStateItem(TaurusGraphicsItem):
         self._currBrush = Qt.QBrush(Qt.Qt.NoBrush)
         if v: # or self.getShowState():
             try:
-                import PyTango
                 bg_brush, fg_brush = None,None
-                if self.getModelObj().getType() == PyTango.ArgType.DevState:
+                if self.getModelObj().getType() == DataType.DevState:
                     bg_brush, fg_brush = QT_DEVICE_STATE_PALETTE.qbrush(v.value)
-                elif self.getModelObj().getType() == PyTango.ArgType.DevBoolean:
-                    bg_brush, fg_brush = QT_DEVICE_STATE_PALETTE.qbrush((PyTango.DevState.FAULT,PyTango.DevState.ON)[v.value])
+                elif self.getModelObj().getType() == DataType.Boolean:
+                    bg_brush, fg_brush = QT_DEVICE_STATE_PALETTE.qbrush((DevState.FAULT,DevState.ON)[v.value])
                 elif self.getShowQuality():
                     bg_brush, fg_brush = QT_ATTRIBUTE_QUALITY_PALETTE.qbrush(v.quality)            
                 if None not in (bg_brush,fg_brush):
@@ -1057,18 +1061,12 @@ class TaurusGraphicsStateItem(TaurusGraphicsItem):
             except:
                 self.warning('In TaurusGraphicsStateItem(%s).updateStyle(%s): colors failed!'%(self._name,self._currText))
                 self.warning(traceback.format_exc())
-                
-        states = {
-            'ON':0,'OFF':1,'CLOSE':2,'OPEN':3,
-            'INSERT':4,'EXTRACT':5,'MOVING':6,
-            'STANDBY':7,'FAULT':8,'INIT':9,
-            'RUNNING':10,'ALARM':11,'DISABLE':12,
-            'UNKNOWN':13
-            }
+
         #Parsing _map to manage visibility (a list of values for which the item is visible or not)
-        if v and not self._map is None and self._currText in states:
+        if (v and not self._map is None and
+                    self._currText in DevState.__members__):
             #self.debug('In TaurusGraphicsStateItem.updateStyle(): mapping %s'%self._currText)
-            if states[self._currText] == self._map[1]:
+            if DevState[self._currText] == self._map[1]:
                 self.setVisible(self._map[2])
                 self._visible = self._map[2]
             else:

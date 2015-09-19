@@ -39,13 +39,13 @@ from taurus import Factory
 from taurus.core.taurusexception import TaurusException, DoubleRegistration
 from taurus.core.util.singleton import Singleton
 from taurus.core.util.log import Logger
-from taurus.core.taurusbasetypes import MatchLevel, TaurusSWDevState, \
+from taurus.core.taurusbasetypes import MatchLevel, TaurusDevState, \
     SubscriptionState, TaurusEventType, TaurusAttrValue, TaurusTimeVal, \
     AttrQuality
 from taurus.core.taurusfactory import TaurusFactory
 from taurus.core.taurusattribute import TaurusAttribute
 from taurus.core.taurusdevice import TaurusDevice
-from taurus.core.taurusdatabase import TaurusDatabase
+from taurus.core.taurusauthority import TaurusAuthority
 from taurus.core.taurusconfiguration import TaurusConfiguration
 from taurus.core.tauruspollingtimer import TaurusPollingTimer
 
@@ -81,7 +81,7 @@ class AbstractEpicsNameValidator(Singleton):
     def getNames(self, s, factory=None):
         """Returns the full, normal and simple names for this object, or None if there is no match'''
         """
-        raise RuntimeError('Not Allowed to call this method from subclasses')
+        raise NotImplementedError('abstract. Needs being implemented')
     
     def getDeviceName(self, s, full=True):
         '''
@@ -142,7 +142,7 @@ class EpicsAttributeNameValidator(AbstractEpicsNameValidator):
         
 
 class EpicsDeviceNameValidator(AbstractEpicsNameValidator):
-    '''A validator of names for :class:`EpicsDevice`. By taurusconvention, 
+    '''A validator of names for :class:`EpicsDevice`. By taurus convention, 
     the model name for an epics device name *must* end with the base separator
     (in order to distinguish device names from attribute names)'''
     
@@ -195,9 +195,16 @@ class EpicsConfigurationNameValidator(AbstractEpicsNameValidator):
         names = self.getNames(s)
         if names is None: return None
         return names[0].rsplit('?configuration')[0]#remove the "?configuration..." substring from the fullname 
-        
 
-class EpicsDatabase(TaurusDatabase):
+
+class EpicsDataBaseNameValidator(AbstractEpicsNameValidator):
+    '''A validator of names for :class:`EpicsDatabase`. 
+    Note that the epics scheme does not implement a model for DataBase and 
+    hence only the default database name is valid'''
+    name_pattern = "^%s$" % EpicsFactory.DEFAULT_DATABASE
+    
+
+class EpicsDatabase(TaurusAuthority):
     '''
     Dummy database class for Epics (the Database concept is not used in the Epics scheme)
     
@@ -209,6 +216,10 @@ class EpicsDatabase(TaurusDatabase):
         
     def __getattr__(self, name):
         return "EpicsDatabase object calling %s" % name
+    
+    @classmethod
+    def getNameValidator(cls):
+        return EpicsDataBaseNameValidator()
 
 
 class EpicsDevice(TaurusDevice):
@@ -221,18 +232,11 @@ class EpicsDevice(TaurusDevice):
     .. warning:: In most cases this class should not be instantiated directly.
                  Instead it should be done via the :meth:`EpicsFactory.getDevice`
     '''
-    
-    #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
-    # TaurusModel necessary overwrite
-    #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
-    # helper class property that stores a reference to the corresponding factory
-    _factory = None
-    
-    @classmethod
-    def factory(cls):
-        if cls._factory is None:
-            cls._factory = Factory(scheme='epics')
-        return cls._factory
+
+    def __init__(self, name, **kw):
+        """Object initialization."""
+        self.call__init__(TaurusDevice, name, **kw)
+        self.scheme = 'epics'
     
     #-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
     # TaurusDevice necessary overwrite
@@ -255,7 +259,7 @@ class EpicsDevice(TaurusDevice):
             new_sw_state = event_value
         else:
             self.info("Unexpected value to decode: %s" % str(event_value))
-            new_sw_state = TaurusSWDevState.Crash
+            new_sw_state = TaurusDevState.NotReady
         value = TaurusAttrValue() 
         value.value = new_sw_state
         return value
@@ -283,6 +287,7 @@ class EpicsAttribute(TaurusAttribute):
         else:
             self.info('connection to epics PV failed')
             self._value = TaurusAttrValue()
+        self.scheme = 'epics'
         
         #print "INIT",self.__pv, connected
         
@@ -451,6 +456,7 @@ class EpicsConfiguration(TaurusConfiguration):
             return getattr(self._attr_info,name)
         except:
             raise AttributeError("'%s'object has no attribute '%s'"%(self.__class__.__name__, name))
+
     @classmethod
     def getNameValidator(cls):
         return EpicsConfigurationNameValidator()
@@ -505,7 +511,7 @@ class EpicsFactory(Singleton, TaurusFactory, Logger):
             self.traceback()
             return None
 
-    def getDatabase(self, db_name=None):
+    def getAuthority(self, db_name=None):
         """Obtain the EpicsDatabase object.
         
         :param db_name: (str) this is ignored because only one dummy database is supported
@@ -534,7 +540,7 @@ class EpicsFactory(Singleton, TaurusFactory, Logger):
             fullname = names[0]
             d = self.epics_devs.get(fullname, None)
             if d is None: #if the full name is not there, create one
-                db = self.getDatabase()
+                db = self.getAuthority()
                 d = EpicsDevice(fullname, parent=db, storeCallback=self._storeDev) #use full name
         return d
     
@@ -666,12 +672,12 @@ class EpicsFactory(Singleton, TaurusFactory, Logger):
             del self.polling_timers[period]
             
 
-    
+  
 
 #===============================================================================
 # Just for testing
 #===============================================================================
-def test1():
+def _test1():
     f = EpicsFactory()
     d = f.getDevice('epics://foo:bar:')
     a = f.getAttribute('epics://foo:bar:baz')
@@ -689,7 +695,7 @@ def test1():
 #    print c.getUnit()
     
 
-def test2():
+def _test2():
     from taurus import Attribute
     a = Attribute('epics://mp49t:sim1.RBV')
     class Dummy:
@@ -705,7 +711,7 @@ def test2():
     while kk.n <= 20:
         time.sleep(1)        
     
-def test3():
+def _test3():
     import sys
     from taurus.qt.qtgui.application import TaurusApplication
     from taurus.qt.qtgui.panel import TaurusForm
@@ -733,6 +739,6 @@ def test3():
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
-    test3()
+    _test3()
     
         

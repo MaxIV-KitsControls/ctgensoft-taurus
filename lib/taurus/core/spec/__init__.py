@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 #############################################################################
 ##
 ## This file is part of Taurus
@@ -23,20 +22,12 @@
 ##
 #############################################################################
 
-"""
-.. currentmodule:: taurus.core.simulation
+__docformat__ = "restructuredtext"
 
-Simulation extension for taurus core mode.
-The simulation extension is a special extension that provides simulation
-objects. The official scheme name is 'simulation'.
+from specattribute import *                                                    
+from specconfiguration import *
+from specdatabase import *
+from specdevice import *
+from specfactory import *
+from specvalidator import *
 
-The main usage for this extension is to provide a useful value when using the
-Qt designer to design the GUI.
-The widgets have in their constructor a 'designMode' parameter that inside
-the designer is set to True by the different plugins that export the different
-taurus widgets to the designer. This way the developer can have a better idea
-of what the GUI will look like in the end without connecting to the actual device
-in design time (which could be dangerous at times) even if the values don't make 
-much sence.
-"""
-from simfactory import *

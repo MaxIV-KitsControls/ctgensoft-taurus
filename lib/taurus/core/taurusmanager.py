@@ -30,20 +30,21 @@ __all__ = ["TaurusManager"]
 __docformat__ = "restructuredtext"
 
 import os
-import imp
 import atexit
 
 from .util.singleton import Singleton
-from .util.log import Logger
+from .util.log import Logger, tep14_deprecation
 from .util.threadpool import ThreadPool
 
 from .taurusbasetypes import OperationMode, ManagerState, TaurusSerializationMode
-from .taurusdatabase import TaurusDatabase
+from .taurusauthority import TaurusAuthority
 from .taurusdevice import TaurusDevice
 from .taurusattribute import TaurusAttribute
 from .taurusconfiguration import TaurusConfiguration
 from .taurusexception import TaurusException
 from .taurusfactory import TaurusFactory
+from .taurushelper import getSchemeFromName
+from taurus import tauruscustomsettings
 
 
 class TaurusManager(Singleton, Logger):
@@ -59,7 +60,7 @@ class TaurusManager(Singleton, Logger):
     PLUGIN_KEY = "__taurus_plugin__"
     
     DefaultSerializationMode = TaurusSerializationMode.Concurrent
-    default_scheme = "tango"
+    default_scheme = getattr(tauruscustomsettings, 'DEFAULT_SCHEME', "tango")
 
     def __init__(self):
         """ Initialization. Nothing to be done here for now."""
@@ -81,7 +82,6 @@ class TaurusManager(Singleton, Logger):
         self.debug("reInit()")
         this_path = os.path.abspath(__file__)
         self._this_path = os.path.dirname(this_path)
-        self._operation_mode = OperationMode.ONLINE
         self._serialization_mode = self.DefaultSerializationMode
         if self._serialization_mode == TaurusSerializationMode.Concurrent:
             self._thread_pool = ThreadPool(name="TaurusTP",
@@ -145,25 +145,25 @@ class TaurusManager(Singleton, Logger):
         return self._serialization_mode
     
     def setOperationMode(self, mode):
-        """Sets the operation mode for the system.
+        """Deprecated. Sets the operation mode for the system.
         
         :param mode: (OperationMode) the new operation mode"""
-        self.debug("Setting operation mode to %s" % OperationMode.whatis(mode))
-        if mode == OperationMode.OFFLINE:
-            self._initial_default_scheme = self.default_scheme
-            self.default_scheme = "simulation"
-        else:
-            self.default_scheme = self._initial_default_scheme
-            
-        self._operation_mode = mode
-        for plugin in self.getPlugins().values():
-            plugin().setOperationMode(mode)
+        dep = 'setOperationMode'
+        rel = 'Taurus4'
+        dbg_msg = "Don't use this method"
+        msg = '%s is deprecated (from %s). %s' % (dep, rel, dbg_msg)
+        self.deprecated(msg)
         
     def getOperationMode(self):
-        """Gives the current operation mode.
+        """Deprecated. Gives the current operation mode.
         
         :return: (OperationMode) the current operation mode"""
-        return self._operation_mode
+        dep = 'getOperationMode'
+        rel = 'Taurus4'
+        dbg_msg = "Don't use this method"
+        msg = '%s is deprecated (from %s). %s' % (dep, rel, dbg_msg)
+        self.deprecated(msg)
+        return OperationMode.ONLINE
         
     def getDefaultFactory(self):
         """Gives the default factory.
@@ -225,13 +225,18 @@ class TaurusManager(Singleton, Logger):
         if factory is None: return
         return factory.findObjectClass(absolute_name)
     
-    def getDatabase(self, name):
+    def getAuthority(self, name):
         """Returns a database object for the given name
         
         :param name: (str) database name
-        :return: (taurus.core.taurusdatabase.TaurusDatabase) the database for the given name
+        :return: (taurus.core.taurusauthority.TaurusAuthority) the authority for the given name
         """
-        return self.getObject(TaurusDatabase, name)
+        return self.getObject(TaurusAuthority, name)
+    
+    def getDatabase(self, name):
+        """Deprecated. Use getAuthority instead"""
+        self.warning('getDatabase is deprecated. Use getAuthority instead')
+        return self.getAuthority(self, name)
 
     def getDevice(self, name):
         """Returns a device object for the given name
@@ -248,31 +253,34 @@ class TaurusManager(Singleton, Logger):
         :return: (taurus.core.taurusattribute.TaurusAttribute) the attribute for the given name
         """
         return self.getObject(TaurusAttribute, name)
-    
+
+    @tep14_deprecation( alt='getAttribute')
     def getConfiguration(self, name):
         """Returns a configuration object for the given name
         
         :param name: (str) configuration name
         :return: (taurus.core.taurusconfiguration.TaurusConfiguration) the configuration for the given name
         """
-        return self.getObject(TaurusConfiguration, name)
+        return self.getAttribute(name)
         
     def _get_factory(self, name):
-        scheme = self._get_scheme(name)
+        scheme = self.getScheme(name)
         if scheme is None: return
         try:
             return self.getPlugins()[scheme]()
         except:
             raise TaurusException('Invalid scheme "%s"'%scheme)
 
-    def _get_scheme(self, name):
-        try:
-            return name[:name.index('://')]
-        except ValueError, e:
-            return self.default_scheme
+    def getScheme(self, name):
+        '''Returns the scheme name for a given model name
+        
+        :param name: (str) model name
+        :return: (str) scheme name
+        '''
+        return getSchemeFromName(name, implicit=True)
         
     def _get_schema(self, name):
-        raise DeprecationWarning('_get_schema is deprecated. Use _get_scheme instead')
+        raise DeprecationWarning('_get_schema is deprecated. Use getScheme instead')
 
     def _build_plugins(self):
         plugin_classes = self._get_plugin_classes()
@@ -288,9 +296,15 @@ class TaurusManager(Singleton, Logger):
                 else:
                     plugins[scheme] = plugin_class
         return plugins
+
+    def buildPlugins(self):
+        '''Returns the current valid plugins
+
+        :return: (dic) plugins
+        ''' 
+        return self._build_plugins()
         
     def _get_plugin_classes(self):
-        import taurusfactory
         upgrade_classes = []
         
         elems = os.listdir(self._this_path)
