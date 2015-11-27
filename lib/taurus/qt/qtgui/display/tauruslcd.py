@@ -88,7 +88,7 @@ class TaurusLCDController(TaurusBaseController):
     
     def _updateLength(self, lcd):
         model = self.modelObj()
-        n = 6
+        n = 8
         try:
             fmt = model.getFormat()
             if fmt:
@@ -127,8 +127,19 @@ class TaurusLCDControllerAttribute(TaurusScalarAttributeControllerHelper, Taurus
 
     def _getDisplayValue(self, widget, valueObj, idx, write):
         try:
+            digits = 8 
             if write: value = valueObj.wvalue.magnitude
             else: value = valueObj.rvalue.magnitude
+            if (type(value) == float and len(str(value)) > digits):
+                integral_part_str = str(value).split(".")[0]
+                len_int = len(integral_part_str)
+                if len_int < (digits-1):
+                    value = round(value, (digits-1)-len_int)
+                else:
+                    value = int(integral_part_str)
+            if ((type(value) == long or type(value) == int) and 
+                len(str(value)) > digits):
+                value = "%1.1e"%(value)
             if idx is not None and len(idx):
                 for i in idx: value = value[i]
             if self._last_config_value is None or value is None:
@@ -151,7 +162,7 @@ class TaurusLCDControllerConfiguration(TaurusConfigurationControllerHelper, Taur
 class TaurusLCDControllerDesignMode(object):
 
     def _updateLength(self, lcd):
-        lcd.setNumDigits(6)
+        lcd.setNumDigits(8)
         
     def getDisplayValue(self, write=False):
         v = self.w_value()
