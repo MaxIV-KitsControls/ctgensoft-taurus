@@ -45,7 +45,7 @@ class ExternalAppAction(Qt.QAction, BaseConfigurableClass):
     """
     DEFAULT_ICON_NAME = 'application-x-executable'
 
-    cmdArgsChanged = Qt.pyqtSignal(str)
+    cmdArgsChanged = Qt.pyqtSignal(list)
 
     def __init__(self, cmdargs, text=None, icon=None, parent=None, interactive=True):
         '''creator
