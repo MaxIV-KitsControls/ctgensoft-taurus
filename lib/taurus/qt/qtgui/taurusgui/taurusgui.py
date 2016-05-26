@@ -826,7 +826,7 @@ class TaurusGui(TaurusMainWindow):
                 sys.exit()
 
         Qt.qApp.SDM.connectWriter(
-            "SelectedInstrument", synoptic, "graphicItemSelected(QString)")
+            "SelectedInstrument", synoptic, "graphicItemSelected")
         Qt.qApp.SDM.connectReader(
             "SelectedInstrument", synoptic.selectGraphicItem)
 
